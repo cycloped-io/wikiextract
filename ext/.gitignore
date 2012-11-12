@@ -1,0 +1,8 @@
+Makefile
+mkmf.log
+parser.o
+token.o
+wikitext.o
+wikitext.so
+wikitext_ragel.o
+.built
