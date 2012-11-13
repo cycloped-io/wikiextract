@@ -58,6 +58,18 @@ module Wikitext
           puts str
         end
         type = token.token_type
+#        case type
+#        when *START_NOWIKI_TOKENS.to_a
+#        when *END_NOWIKI_TOKENS.to_a
+#        when *START_BLIND_TOKENS.to_a
+#        when *END_BLIND_TOKENS.to_a
+#        when :link_start
+#        when :ext_link_start
+#        when :link_end
+#        when :ext_link_end
+#        when :end_of_file
+#        when :crlf
+
         case @states.last
         when :nowiki
           case type
@@ -144,16 +156,14 @@ module Wikitext
             @states.pop
           when :end_of_file
             end_of_file_action
+          when :crlf
+            @@crlf_positions[@stack.last] += 1
+            puts "Unclosed link detected".hl(:red)
+            @link_stack.each{|v| print v.string_value }
+            @stack.pop
+            @states.pop
           else
-            if token.token_type == :crlf
-              @@crlf_positions[@stack.last] += 1
-              puts "Unclosed link detected".hl(:red)
-              @link_stack.each{|v| print v.string_value }
-              @stack.pop
-              @states.pop
-            else
-              push_token_action(token)
-            end
+            push_token_action(token)
           end
         when :link
           case type
@@ -178,28 +188,24 @@ module Wikitext
             @states.pop
           when :end_of_file
             end_of_file_action
+          when :crlf
+            @@crlf_positions[@stack.last] += 1
+            puts "Unclosed link detected".hl(:red)
+            @link_stack.each{|v| print v.string_value }
+            @stack.pop
+            @states.pop
           else
-            if token.token_type == :crlf
-              @@crlf_positions[@stack.last] += 1
-              puts "Unclosed link detected".hl(:red)
-              @link_stack.each{|v| print v.string_value }
-              @stack.pop
-              @states.pop
-            else
-              push_token_action(token)
-            end
+            push_token_action(token)
           end
         when :default
           case type
           when *START_NOWIKI_TOKENS.to_a
             @stack.push type
             @states.push :nowiki
+          when :tag_end
+            print token.string_value
           when *END_NOWIKI_TOKENS.to_a
-            if type == :tag_end
-              print token.string_value
-            else
-              puts "Closing token without opening token #{token.token_type} #{@states.last}".hl(:red)
-            end
+            puts "Closing token without opening token #{token.token_type} #{@states.last}".hl(:red)
           when *START_BLIND_TOKENS.to_a
             push_type_action(token)
             @states.push :blind
@@ -217,21 +223,17 @@ module Wikitext
             puts "Closing token without opening token #{token.token_type} #{@states.last}".hl(:red)
           when :end_of_file
             end_of_file_action
+          when *CRLF_TOKENS.to_a
+            print "\n"
+          when *SKIP_TOKENS.to_a
+            #skip
+          when *PRINT_TOKENS.to_a
+            print token.string_value
+          when :crlf
+            print "\n"
           else
-            if CRLF_TOKENS.include?(token.token_type)
-              print "\n"
-            elsif SKIP_TOKENS.include?(token.token_type)
-              #skip
-            else
-              if PRINT_TOKENS.include?(token.token_type)
-                print token.string_value
-              elsif token.token_type == :crlf
-                print "\n"
-              else
-                print " " + token.token_type.to_s.hl(:blue) +
-                  " #{token.string_value}".hl(:green)
-              end
-            end
+            print " " + token.token_type.to_s.hl(:blue) +
+              " #{token.string_value}".hl(:green)
           end
         else
           puts "Invalid state #{@state}".hl(:red)
