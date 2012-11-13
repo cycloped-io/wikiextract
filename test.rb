@@ -30,11 +30,12 @@ parser = Wikitext::Parser.new
 article_id = ARGV[0] && ARGV[0].to_i
 
 start = 0
-stop = 1000
+stop = 50
 
 File.open("../rlp-wiki/data/split_0.csv") do |file|
   file.each.with_index do |line,index|
     next if index < start && !article_id
+    break if index > stop && !article_id
     matched = line.match(/^(\d+),"(.*)"$/)
     if article_id
       break if matched[1].to_i > article_id
@@ -45,7 +46,6 @@ File.open("../rlp-wiki/data/split_0.csv") do |file|
     puts contents if article_id
     #puts
     parser.parse(contents)
-    break if index > stop && !article_id
   end
 end
 pp parser.crlf_stats.sort_by{|k,v| -v}

@@ -79,7 +79,7 @@
     mail                = user '@' domain ;
 
     uri_chars           = (alnum | [@$&'(\*\+=%_~/#] | '-')+ ;
-    special_uri_chars   = ([:!\(\),;\.\?])+ ;
+    special_uri_chars   = ([!\(\),\.\?])+ ;
     uri                 = ('mailto:'i mail) |
                           (('http'i [sS]? '://' | 'ftp://'i | 'svn://'i) uri_chars (special_uri_chars uri_chars)*) ;
     path                = '/' ([a-zA-Z0-9_\-.]+ '/'?)* ;
@@ -135,6 +135,18 @@
         };
 
         '</math>'i
+        {
+            EMIT(MATH_END);
+            fbreak;
+        };
+
+        '<timeline>'i
+        {
+            EMIT(MATH_START);
+            fbreak;
+        };
+
+        '</timeline>'i
         {
             EMIT(MATH_END);
             fbreak;
@@ -209,7 +221,7 @@
             else
             {
                 REWIND();
-                EMIT(GREATER);
+                EMIT(TAG_END);
             }
             fbreak;
         };
@@ -232,6 +244,8 @@
             if (out->column_start == 1              ||
                 last_token_type == OL               ||
                 last_token_type == UL               ||
+                last_token_type == SL               ||
+                last_token_type == CL               ||
                 last_token_type == BLOCKQUOTE       ||
                 last_token_type == BLOCKQUOTE_START)
                 EMIT(OL);
@@ -245,9 +259,41 @@
             if (out->column_start == 1              ||
                 last_token_type == OL               ||
                 last_token_type == UL               ||
+                last_token_type == SL               ||
+                last_token_type == CL               ||
                 last_token_type == BLOCKQUOTE       ||
                 last_token_type == BLOCKQUOTE_START)
                 EMIT(UL);
+            else
+                EMIT(PRINTABLE);
+            fbreak;
+        };
+
+        ';'
+        {
+            if (out->column_start == 1              ||
+                last_token_type == OL               ||
+                last_token_type == UL               ||
+                last_token_type == SL               ||
+                last_token_type == CL               ||
+                last_token_type == BLOCKQUOTE       ||
+                last_token_type == BLOCKQUOTE_START)
+                EMIT(SL);
+            else
+                EMIT(PRINTABLE);
+            fbreak;
+        };
+
+        ':'
+        {
+            if (out->column_start == 1              ||
+                last_token_type == OL               ||
+                last_token_type == UL               ||
+                last_token_type == SL               ||
+                last_token_type == CL               ||
+                last_token_type == BLOCKQUOTE       ||
+                last_token_type == BLOCKQUOTE_START)
+                EMIT(CL);
             else
                 EMIT(PRINTABLE);
             fbreak;
@@ -321,6 +367,18 @@
         path
         {
             EMIT(PATH);
+            fbreak;
+        };
+
+        '__NOTOC__'
+        {
+            EMIT(URI);
+            fbreak;
+        };
+
+        '[[' alpha* ':'
+        {
+            EMIT(SPECIAL_LINK_START);
             fbreak;
         };
 
@@ -417,19 +475,19 @@
 
         '<' alpha
         {
-            EMIT(LESS);
+            EMIT(TAG_START);
             fbreak;
         };
 
         '<' '/'
         {
-            EMIT(LESS);
+            EMIT(TAG_START);
             fbreak;
         };
 
         '<' '!'
         {
-            EMIT(LESS);
+            EMIT(TAG_START);
             fbreak;
         };
 
@@ -441,7 +499,7 @@
 
         '>'
         {
-            EMIT(GREATER);
+            EMIT(TAG_END);
             fbreak;
         };
 

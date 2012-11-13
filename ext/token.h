@@ -98,8 +98,8 @@ enum token_types {
     DECIMAL_ENTITY,
     QUOT,
     AMP,
-    LESS,
-    GREATER,
+    TAG_START,
+    TAG_END,
     IMG_START,
     IMG_END,
     LEFT_CURLY,
@@ -114,6 +114,9 @@ enum token_types {
     TABLE_END,
     MATH_START,
     MATH_END,
+    SPECIAL_LINK_START,
+    SL,
+    CL,
 };
 
 VALUE Wikitext_parser_token_types(VALUE self);
