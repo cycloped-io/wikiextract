@@ -24,7 +24,7 @@ module Wikitext
                            :h6_start, :h6_end, :ul, :ol, :sl, :cl])
 
     PRINT_TOKENS = Set.new([:space,:alnum,:default,:special_uri_chars,
-                            :printable,:quot,:path, :amp, :left_curly, :right_curly])
+                            :printable,:quot,:path,:amp,:left_curly,:right_curly])
 
     @@crlf_positions = Hash.new(0)
     @@errors = Hash.new(0)
@@ -39,6 +39,7 @@ module Wikitext
     end
 
     def flush
+      @message ||= ""
       STDOUT.puts @message.gsub(/\n\n+/,"\n\n")
       @message = ""
     end
@@ -60,50 +61,86 @@ module Wikitext
       @stack = []
       @states = [:default]
       @link_stack = []
+      #STDOUT.puts input
       self.tokenize(input).each.with_index do |token,index|
         unless true || token.token_type == :space
           str = "#{token.token_type.to_s} #{token.string_value}" +
-            " [#{@states.join(",")}] [#{@stack.join(",")}]"
+            " [#{@states.join(",")}] [#{@stack.join(",")}]".hl(:green)
           str = str.hl(:green) if token.token_type == :crlf
           puts str
         end
         type = token.token_type
 #        case type
-#        when *START_NOWIKI_TOKENS.to_a
-#        when *END_NOWIKI_TOKENS.to_a
-#        when *START_BLIND_TOKENS.to_a
-#        when *END_BLIND_TOKENS.to_a
+#        when :img_end
+#          # skip
 #        when :link_start
-#        when :ext_link_start
+#          print " " + token.token_type.to_s.hl(:blue) + " #{token.string_value}".hl(:green)
 #        when :link_end
+#          print " " + token.token_type.to_s.hl(:blue) + " #{token.string_value}".hl(:green)
+#          #close_link_action(token,id,opening_type)
+#        when :ext_link_start
+#          print " " + token.token_type.to_s.hl(:blue) + " #{token.string_value}".hl(:green)
 #        when :ext_link_end
+#          print " " + token.token_type.to_s.hl(:blue) + " #{token.string_value}".hl(:green)
+#          #close_ext_link_action(token,id,opening_type)
+#        when :alnum
+#          print token.string_value
+#        when :printable
+#          print token.string_value
+#        when :default
+#          print token.string_value
 #        when :end_of_file
+#          end_of_file_action(id)
 #        when :crlf
-
-        case @states.last
-        when :nowiki
-          case type
-          when *END_NOWIKI_TOKENS.to_a
+#          print "\n"
+#        when :space
+#          print token.string_value
+#        else
+#          print " " + token.token_type.to_s.hl(:blue) + " #{token.string_value}".hl(:green)
+#        end
+        case type
+        when *SKIP_TOKENS.to_a
+        when *START_NOWIKI_TOKENS.to_a
+          case @states.last
+          when :blind, :blind_link, :inner_link, :link, :default
+            @stack.push type
+            @states.push :nowiki
+          end
+        when :tag_end
+          case @states.last
+          when :default
+            print token.string_value
+          when :nowiki
             opening_type = @stack.last
             if opening_type.to_s == type.to_s.sub(/_end$/,"_start")
               @stack.pop
               @states.pop
             end
           else
-            # skip
-          end
-        when :blind
-          case type
-          when *START_NOWIKI_TOKENS.to_a
-            @stack.push type
-            @states.push :nowiki
-          when *END_NOWIKI_TOKENS.to_a
             error("Closing token without opening token #{token.token_type} #{@states.last}",
                  id)
-          when *START_BLIND_TOKENS.to_a
+          end
+        when *END_NOWIKI_TOKENS.to_a
+          case @states.last
+          when :nowiki
+            opening_type = @stack.last
+            if opening_type.to_s == type.to_s.sub(/_end$/,"_start")
+              @stack.pop
+              @states.pop
+            end
+          else
+            error("Closing token without opening token #{token.token_type} #{@states.last}",
+                 id)
+          end
+        when *START_BLIND_TOKENS.to_a
+          case @states.last
+          when :blind, :blind_link, :inner_link, :link, :default
             push_type_action(token)
             @states.push :blind
-          when *END_BLIND_TOKENS.to_a
+          end
+        when *END_BLIND_TOKENS.to_a
+          case @states.last
+          when :blind
             opening_type = @stack.last
             if opening_type.to_s == type.to_s.sub(/_end$/,"_start")
               @stack.pop
@@ -111,145 +148,100 @@ module Wikitext
             else
               error("Non-matching tokens #{opening_type} #{type} #{@states.last}",id)
             end
-          when :link_start, :ext_link_start
+          when :blind_link, :inner_link, :link
+            error("Non-matching tokens #{@stack.last} #{type} #{@states.last}",id)
+          when :default
+            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
+          end
+        when :link_start
+          case @states.last
+          when :blind, :blind_link
             push_type_action(token)
             @states.push :blind_link
-          when :link_end
+          when :inner_link, :link
+            push_type_action(token)
+            @states.push :inner_link
+          when :default
+            push_type_action(token)
+            @states.push :link
+          end
+        when :ext_link_start
+          case @states.last
+          when :blind, :blind_link
+            push_type_action(token)
+            @states.push :blind_link
+          when :inner_link, :link
+            push_type_action(token)
+            @states.push :inner_link
+          when :default
+            push_type_action(token)
+            @states.push :link
+          end
+        when :link_end
+          case @states.last
+          when :blind
             if @stack.last == :special_link_start
               @stack.pop
               @states.pop
             else
               error("Non-matching tokens #{@stack.last} #{type} #{@states.last}",id)
             end
-          when :ext_link_end
+          when :blind_link, :inner_link
+            @stack.pop
+            @states.pop
+          when :link
+            @states.pop
+            opening = @stack.pop
+            close_link_action(token,id,opening)
+          when :link_end
+            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
+          end
+        when :ext_link_end
+          case @states.last
+          when :blind
             error("Non-matching tokens #{opening_type} #{type} #{@states.last}",id)
-          when :end_of_file
-            end_of_file_action(id)
-          end
-        when :blind_link
-          case type
-          when *START_NOWIKI_TOKENS.to_a
-            @stack.push type
-            @states.push :nowiki
-          when *END_NOWIKI_TOKENS.to_a
-            error("Closing token without opening token #{token.token_type} #{@states.last}",
-                  id)
-          when *START_BLIND_TOKENS.to_a
-            push_type_action(token)
-            @states.push :blind
-          when *END_BLIND_TOKENS.to_a
-            error("Non-matching tokens #{@stack.last} #{type} #{@states.last}",id)
-          when :link_start, :ext_link_start
-            push_type_action(token)
-            @states.push :blind_link
-          when :link_end, :ext_link_end
+          when :blind_link, :inner_link
             @stack.pop
             @states.pop
-          when :end_of_file
-            end_of_file_action(id)
-          end
-        when :inner_link
-          case type
-          when *START_NOWIKI_TOKENS.to_a
-            @stack.push type
-            @states.push :nowiki
-          when *END_NOWIKI_TOKENS.to_a
-            error("Closing token without opening token #{token.token_type} #{@states.last}",
-                  id)
-          when *START_BLIND_TOKENS.to_a
-            push_type_action(token)
-            @states.push :blind
-          when *END_BLIND_TOKENS.to_a
-            error("Non-matching tokens #{@stack.last} #{type} #{@states.last}",id)
-          when :link_start, :ext_link_start
-            push_type_action(token)
-            @states.push :inner_link
-          when :link_end, :ext_link_end
-            @stack.pop
+          when :link
             @states.pop
-          when :end_of_file
-            end_of_file_action(id)
-          when :crlf
+            opening = @stack.pop
+            close_ext_link_action(token,id,opening)
+          when :ext_link_end
+            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
+          end
+        when :end_of_file
+          end_of_file_action(id)
+        when :crlf
+          case @states.last
+          when :inner_link, :link
             @@crlf_positions[@stack.last] += 1
             error("Unclosed link detected",id)
             @link_stack.each{|v| print v.string_value }
             @stack.pop
             @states.pop
-          else
+          when :default
+            print "\n"
+          when :link, :inner_link
             push_token_action(token)
           end
-        when :link
-          case type
-          when *START_NOWIKI_TOKENS.to_a
-            @stack.push type
-            @states.push :nowiki
-          when *END_NOWIKI_TOKENS.to_a
-            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
-          when *START_BLIND_TOKENS.to_a
-            push_type_action(token)
-            @states.push :blind
-          when *END_BLIND_TOKENS.to_a
-            error("Non-matching tokens #{@stack.last} #{type} #{@states.last}",id)
-          when :link_start, :ext_link_start
-            push_type_action(token)
-            @states.push :inner_link
-          when :link_end
-            close_link_action(token,id)
-            @states.pop
-          when :ext_link_end
-            close_ext_link_action(token,id)
-            @states.pop
-          when :end_of_file
-            end_of_file_action(id)
-          when :crlf
-            @@crlf_positions[@stack.last] += 1
-            error("Unclosed link detected",id)
-            @link_stack.each{|v| print v.string_value }
-            @stack.pop
-            @states.pop
-          else
+        when *CRLF_TOKENS.to_a
+          case @states.last
+          when :default
+            print "\n"
+          when :link, :inner_link
             push_token_action(token)
           end
-        when :default
-          case type
-          when *START_NOWIKI_TOKENS.to_a
-            @stack.push type
-            @states.push :nowiki
-          when :tag_end
+        when *PRINT_TOKENS.to_a
+          case @states.last
+          when :default
             print token.string_value
-          when *END_NOWIKI_TOKENS.to_a
-            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
-          when *START_BLIND_TOKENS.to_a
-            push_type_action(token)
-            @states.push :blind
-          when *END_BLIND_TOKENS.to_a
-            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
-          when :link_start
-            push_type_action(token)
-            @states.push :link
-          when :link_end
-            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
-          when :ext_link_start
-            push_type_action(token)
-            @states.push :link
-          when :ext_link_end
-            error("Closing token without opening token #{token.token_type} #{@states.last}",id)
-          when :end_of_file
-            end_of_file_action(id)
-          when *CRLF_TOKENS.to_a
-            print "\n"
-          when *SKIP_TOKENS.to_a
-            #skip
-          when *PRINT_TOKENS.to_a
-            print token.string_value
-          when :crlf
-            print "\n"
-          else
-            print " " + token.token_type.to_s.hl(:blue) +
-              " #{token.string_value}".hl(:green)
+          when :link, :inner_link
+            push_token_action(token)
           end
         else
-          error("Invalid state #{@state}",id)
+          print " " + token.token_type.to_s.hl(:blue) +
+            " #{token.string_value}".hl(:green)
         end
       end
       flush
@@ -272,8 +264,7 @@ module Wikitext
       end
     end
 
-    def close_link_action(token,id)
-      opening_type = @stack.pop
+    def close_link_action(token,id,opening_type)
       unless @stack.any?{|t| t == :link_start }
         if opening_type.to_s != token.token_type.to_s.sub(/_end$/,"_start")
           error("Non-matching tokens #{opening_type} #{token.token_type} #{@states.last}",id)
@@ -295,8 +286,7 @@ module Wikitext
       end
     end
 
-    def close_ext_link_action(token,id)
-      opening_type = @stack.pop
+    def close_ext_link_action(token,id,opening_type)
       if opening_type.to_s != token.token_type.to_s.sub(/_end$/,"_start")
         error("Non-matching tokens #{opening_type} #{token.token_type} #{@states.last}",id)
       else
