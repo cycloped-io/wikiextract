@@ -1,5 +1,6 @@
 require 'set'
 require 'colors'
+require 'csv'
 
 module Wikitext
   class Parser
@@ -29,6 +30,10 @@ module Wikitext
     @@crlf_positions = Hash.new(0)
     @@errors = Hash.new(0)
 
+    def initialize
+      @out = CSV.open("test.csv","w")
+    end
+
     def print(contents)
       @message ||= ""
       @message << contents
@@ -42,6 +47,10 @@ module Wikitext
       @message ||= ""
       STDOUT.puts @message.gsub(/\n\n+/,"\n\n")
       @message = ""
+    end
+
+    def close
+      @out.close
     end
 
     def crlf_stats
@@ -58,45 +67,65 @@ module Wikitext
     end
 
     def parse(input,id)
+      @id = id
       @state = :default
       @link_stack = []
       self.tokenize(input).each.with_index do |token,index|
-        unless token.token_type == :space
-          str = "#{token.token_type.to_s} #{token.string_value}" +
-            " [#{@states}]".hl(:green)
+        unless true || token.token_type == :space
+          str = "#{token.token_type.to_s} #{token.string_value}"
           str = str.hl(:green) if token.token_type == :crlf
           puts str
         end
-        next
         type = token.token_type
         case type
         when :separator
-          @link_stack.each{|t| print t.string_value.hl(:green) }
-          print "|"
+          link_head(@link_stack)
           @link_stack.clear
+          @state = :separator
         when :link_start
           @state = :link
         when :link_end
-          @link_stack.each{|t| print t.string_value.hl(:purple) }
+          unless @state == :separator
+            link_head(@link_stack)
+          end
+          link_tail(@link_stack)
           @link_stack.clear
-          @state = :default
+          @state = :post_link
         when :ext_link_start
           @state = :ext_link
         when :ext_link_end
-          @link_stack.each{|t| print t.string_value.hl(:yellow) }
+          #@link_stack.each{|t| print_token(t,t.string_value,@out) }
           @link_stack.clear
           @state = :default
-        when :alnum, :printable, :default, :space
+        when :alnum
           if @state == :default
-            print token.string_value
+            print_token(token,token.string_value,@out)
+          elsif @state == :post_link
+            finish_link(token)
+            @state = :default
+          else
+            push_token_action(token)
+          end
+        when :space, :printable, :default, :num
+          if @state == :default
+            print_token(token,token.string_value,@out)
+          elsif @state == :post_link
+            finish_link()
+            print_token(token,token.string_value,@out)
+            @state = :default
           else
             push_token_action(token)
           end
         when :end_of_file
+          finish_link if @state == :post_link
           end_of_file_action(id)
         when :crlf
           if @state == :default
-            print "\n"
+            print_token(token,"\n",@out)
+          elsif @state == :post_link
+            finish_link()
+            print_token(token,"\n",@out)
+            @state = :default
           else
             push_token_action(token)
           end
@@ -111,46 +140,43 @@ module Wikitext
       @link_stack << token
     end
 
-    def push_type_action(token)
-      @stack << token.token_type
+    def finish_link(token=nil)
+      if token
+        if @link_tail.last
+          last_token = @link_tail.last
+          last_token.instance_variable_set("@line_stop",token.line_stop)
+          last_token.instance_variable_set("@column_stop",token.column_stop)
+          last_token.instance_variable_set("@string_value", @link_tail.last.string_value +
+                                           token.string_value)
+        else
+          @link_tail = [token]
+        end
+      end
+      @link_head.each do |token|
+      end
+      print "[".hl(:green)
+      @link_tail.each do |token|
+        print_token(token,token.string_value,@out)
+      end
+      print "]".hl(:green)
+    end
+
+    def link_head(tokens)
+      @link_head = tokens.dup
+    end
+
+    def link_tail(tokens)
+      @link_tail = tokens.dup
+    end
+
+    def print_token(token,str,out)
+      out << [@id,token.token_type,token.line_start,token.line_stop,
+               token.column_start,token.column_stop,str]
+      print str
     end
 
     def end_of_file_action(id)
     end
 
-    def close_link_action(token,id,opening_type)
-      unless @stack.any?{|t| t == :link_start }
-        if opening_type.to_s != token.token_type.to_s.sub(/_end$/,"_start")
-          error("Non-matching tokens #{opening_type} #{token.token_type} #{@states.last}",id)
-        else
-          to_print = []
-          @link_stack.each do |token|
-            if token.token_type == :separator
-              to_print = []
-            elsif token.string_value == ":"
-              to_print = []
-              break
-            else
-              to_print << token.string_value
-            end
-          end
-          to_print.each{|v| print v.hl(:purple) }
-          @link_stack = []
-        end
-      end
-    end
-
-    def close_ext_link_action(token,id,opening_type)
-      if opening_type.to_s != token.token_type.to_s.sub(/_end$/,"_start")
-        error("Non-matching tokens #{opening_type} #{token.token_type} #{@states.last}",id)
-      else
-        to_print = []
-        @link_stack.each do |token|
-          to_print << token.string_value unless token.token_type == :uri
-        end
-        to_print.each{|v| print v.hl(:yellow) }
-        @link_stack = []
-      end
-    end
   end
 end

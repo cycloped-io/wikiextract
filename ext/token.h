@@ -116,6 +116,7 @@ enum token_types {
     SPECIAL_LINK_START,
     SL,
     CL,
+    NUM,
     SKIP
 };
 

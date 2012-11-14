@@ -88,8 +88,8 @@
     domain              = (alnum+ '.')+ tld ;
     mail                = user '@' domain ;
 
-    uri_chars           = (alnum | [@$&'(\*\+=%_~/#] | '-')+ ;
-    special_uri_chars   = ([!\(\),\.\?])+ ;
+    uri_chars           = (alnum | [@$&'(\*\+=%_~/#] | '-') ;
+    special_uri_chars   = (0x21..0x2F | 0x3A..0x40 | 0x5C | 0x5E..0x60 | 0x7E) ;
     uri                 = ('mailto:'i mail) |
                           (('http'i [sS]? '://' | 'ftp://'i | 'svn://'i) uri_chars (special_uri_chars uri_chars)*) ;
     path                = '/' ([a-zA-Z0-9_\-.]+ '/'?)* ;
@@ -721,11 +721,11 @@
               case INNER_LINK :
               case LINK :
                 TODO(); // Push token
-                EMIT(ALNUM);
+                EMIT(PRINTABLE);
                 fbreak;
               break;
               case DEFAULT :
-                EMIT(ALNUM);
+                EMIT(PRINTABLE);
                 fbreak;
               break;
               default :
@@ -735,18 +735,18 @@
             }
         };
 
-        alnum+
+        digit+ ([:., _/\-] digit+)*
         {
             state = GET_STATE();
             switch(state){
               case INNER_LINK :
               case LINK :
                 TODO(); // Push token
-                EMIT(ALNUM);
+                EMIT(NUM);
                 fbreak;
               break;
               case DEFAULT :
-                EMIT(ALNUM);
+                EMIT(NUM);
                 fbreak;
               break;
               default :
@@ -756,7 +756,8 @@
             }
         };
 
-        # all the printable ASCII characters (0x20 to 0x7e) excluding those explicitly covered elsewhere:
+        # all the printable ASCII characters (0x20 to 0x7e) 
+        # excluding those explicitly covered elsewhere:
         # we skip space (0x20), exclamation mark (0x21), quote (0x22), hash (0x23), ampersand (0x26), apostrophe (0x27),
         # left parenthesis (0x28), right parenthesis (0x29), numbers (0x30..0x39), asterisk (0x2a), comma (0x2c), period (0x2e),
         # colon (0x3a), semi-colon (0x3b), less than (0x3c), equals (0x3d), greater than (0x3e), question mark (0x3f), uppercase
@@ -766,7 +767,7 @@
         #     two_byte_sequence   = first byte begins with 110 (0xc0..0xdf), next with 10 (0x80..9xbf);
         #     three_byte_sequence = first byte begins with 1110 (0xe0..0xef), next two with 10 (0x80..9xbf);
         #     four_byte_sequence  = first byte begins with 11110 (0xf0..0xf7), next three with 10 (0x80..9xbf);
-        (0x24..0x25 | 0x2b | 0x2d | 0x2f | 0x40 | 0x5c | 0x5e..0x5f | 0x7e |
+        (alnum | 
           (0xc2..0xdf 0x80..0xbf)                         @two_byte_utf8_sequence     |
           (0xe0..0xef 0x80..0xbf 0x80..0xbf)              @three_byte_utf8_sequence   |
           (0xf0..0xf4 0x80..0xbf 0x80..0xbf 0x80..0xbf)   @four_byte_utf8_sequence
