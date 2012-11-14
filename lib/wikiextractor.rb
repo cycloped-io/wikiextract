@@ -58,43 +58,48 @@ module Wikitext
     end
 
     def parse(input,id)
-      @stack = []
-      @states = [:default]
+      @state = :default
       @link_stack = []
-      #STDOUT.puts input
       self.tokenize(input).each.with_index do |token,index|
-        unless true || token.token_type == :space
+        unless token.token_type == :space
           str = "#{token.token_type.to_s} #{token.string_value}" +
-            " [#{@states.join(",")}] [#{@stack.join(",")}]".hl(:green)
+            " [#{@states}]".hl(:green)
           str = str.hl(:green) if token.token_type == :crlf
           puts str
         end
+        next
         type = token.token_type
         case type
         when :separator
-          print "#{token.string_value}".hl(:green)
+          @link_stack.each{|t| print t.string_value.hl(:green) }
+          print "|"
+          @link_stack.clear
         when :link_start
-          print "#{token.string_value}".hl(:green)
+          @state = :link
         when :link_end
-          print "#{token.string_value}".hl(:green)
-          #close_link_action(token,id,opening_type)
+          @link_stack.each{|t| print t.string_value.hl(:purple) }
+          @link_stack.clear
+          @state = :default
         when :ext_link_start
-          print "#{token.string_value}".hl(:green)
+          @state = :ext_link
         when :ext_link_end
-          print "#{token.string_value}".hl(:green)
-          #close_ext_link_action(token,id,opening_type)
-        when :alnum
-          print token.string_value
-        when :printable
-          print token.string_value
-        when :default
-          print token.string_value
+          @link_stack.each{|t| print t.string_value.hl(:yellow) }
+          @link_stack.clear
+          @state = :default
+        when :alnum, :printable, :default, :space
+          if @state == :default
+            print token.string_value
+          else
+            push_token_action(token)
+          end
         when :end_of_file
           end_of_file_action(id)
         when :crlf
-          print "\n"
-        when :space
-          print token.string_value
+          if @state == :default
+            print "\n"
+          else
+            push_token_action(token)
+          end
         else
           print " " + token.token_type.to_s.hl(:blue) + " #{token.string_value}".hl(:green)
         end
@@ -111,12 +116,6 @@ module Wikitext
     end
 
     def end_of_file_action(id)
-      unless @stack.empty?
-        error("There are unmatched tokens on stack [#{@stack.join(", ")}]",id)
-      end
-      unless @states.last == :default
-        error("There are unmatched states [#{@states.join(", ")}]",id)
-      end
     end
 
     def close_link_action(token,id,opening_type)

@@ -30,7 +30,7 @@ parser = Wikitext::Parser.new
 article_id = ARGV[0] && ARGV[0].to_i
 
 start = 0
-stop = 10
+stop = 0
 
 File.open("../rlp-wiki/data/split_0.csv") do |file|
   file.each.with_index do |line,index|

@@ -30,6 +30,7 @@
 #include "wikitext_ragel.h"
 #include "wikitext.h"
 #include <stdio.h>
+#include <string.h>
 
 #define EMIT(t)     do { out->type = t; out->stop = p + 1; out->column_stop += (out->stop - out->start); } while (0)
 #define MARK()      do { mark = p; } while (0)
@@ -42,8 +43,7 @@
 #define POP()       do { (*token_stack_size)--; (*state_stack_size)--; } while (0)
 #define LAST_TYPE() ( token_stack[(*token_stack_size)-1] )
 #define TODO()      do { } while (0)
-//#define ERROR(msg)  do { printf(msg); printf("\n"); } while (0)
-#define ERROR(msg)  do { printf(msg); printf("\n"); } while (0)
+#define ERROR(msg)  do { printf("[31;1m"); printf(msg); printf("[0m: "); strncpy(error_msg,out->start,p-out->start+1); error_msg[p-out->start+1] = 0; printf("%s\n",error_msg);} while (0)
 #define GET_STATE() ( state_stack[(*state_stack_size)-1] )
 #define DEBUG(msg)  do { printf(msg); printf("\n"); } while (0)
 
@@ -104,7 +104,8 @@
             fbreak;
         };
 
-        ( '<pre>'i ) | ( '<pre lang="' alpha+ '">' ) | ( '<math>'i ) | ( '<timeline>'i )
+        ( '<pre>'i ) | ( '<pre lang="' alpha+ '">' ) | ( '<math>'i ) | ( '<timeline>'i ) |
+        ( '<ref>'i ) | ( '<ref name=' [^\>]+ '>'i )
         {
             state = GET_STATE(); 
             switch(state){
@@ -122,20 +123,24 @@
             }
         };
 
-        ( '</pre>'i ) | ( '</math>'i ) | ( '</timeline>'i )
+        ( '</pre>'i ) | ( '</math>'i ) | ( '</timeline>'i ) | ( '</ref>'i )
         {
             state = GET_STATE();
             switch(state){
               case NOWIKI :
                 opening = LAST_TYPE();
-                if(opening == PRE_START)
+                if(opening == PRE_START) {
                   POP(); 
+                  EMIT(SKIP);
+                  fbreak;
+                }
               break;
               case BLIND :
               case BLIND_LINK :
               case INNER_LINK :
               case LINK :
               case DEFAULT :
+                PRINT_STACK();
                 ERROR("Closing token without opening token");
               break;
               default :
@@ -286,16 +291,10 @@
             switch(state){
               case BLIND :
               case BLIND_LINK :
-                PUSH(SPECIAL_LINK_START,BLIND_LINK);
-              break;
               case INNER_LINK :
               case LINK :
-                PUSH(SPECIAL_LINK_START,INNER_LINK);
-              break;
               case DEFAULT :
-                PUSH(LINK_START,LINK);
-                EMIT(SPECIAL_LINK_START);
-                fbreak;
+                PUSH(SPECIAL_LINK_START,BLIND);
               break;
               default :
                 EMIT(SKIP);
@@ -521,8 +520,8 @@
 
         '&amp;'
         {
-            EMIT(PRINTABLE);
-            fbreak;
+          EMIT(SKIP);
+          fbreak;
         };
 
         '&' alpha+ digit* ';'
@@ -554,8 +553,11 @@
 
         '&'
         {
-            EMIT(AMP);
-            fbreak;
+          if(GET_STATE() == DEFAULT)
+            EMIT(PRINTABLE);
+          else
+            EMIT(SKIP);
+          fbreak;
         };
 
         ( '<' alpha ) |  '</' | '<!'
@@ -760,7 +762,15 @@
         # colon (0x3a), semi-colon (0x3b), less than (0x3c), equals (0x3d), greater than (0x3e), question mark (0x3f), uppercase
         # letters (0x41..0x5a), left bracket (0x5b), right bracket (0x5d), backtick (0x60), lowercase letters (0x61..0x7a), left
         # curly brace (0x7b), vertical bar (0x7c) and right curly brace (0x7d).
-        (0x24..0x25 | 0x2b | 0x2d | 0x2f | 0x40 | 0x5c | 0x5e..0x5f | 0x7e)+
+        #     one_byte_sequence   = byte begins with zero;
+        #     two_byte_sequence   = first byte begins with 110 (0xc0..0xdf), next with 10 (0x80..9xbf);
+        #     three_byte_sequence = first byte begins with 1110 (0xe0..0xef), next two with 10 (0x80..9xbf);
+        #     four_byte_sequence  = first byte begins with 11110 (0xf0..0xf7), next three with 10 (0x80..9xbf);
+        (0x24..0x25 | 0x2b | 0x2d | 0x2f | 0x40 | 0x5c | 0x5e..0x5f | 0x7e |
+          (0xc2..0xdf 0x80..0xbf)                         @two_byte_utf8_sequence     |
+          (0xe0..0xef 0x80..0xbf 0x80..0xbf)              @three_byte_utf8_sequence   |
+          (0xf0..0xf4 0x80..0xbf 0x80..0xbf 0x80..0xbf)   @four_byte_utf8_sequence
+        )+
         {
             state = GET_STATE();
             switch(state){
@@ -771,7 +781,7 @@
                 fbreak;
               break;
               case DEFAULT :
-                EMIT(PRINTABLE);
+                EMIT(ALNUM);
                 fbreak;
               break;
               default :
@@ -781,40 +791,11 @@
             }
         };
 
-        # here is where we handle the UTF-8 and everything else
-        #
-        #     one_byte_sequence   = byte begins with zero;
-        #     two_byte_sequence   = first byte begins with 110 (0xc0..0xdf), next with 10 (0x80..9xbf);
-        #     three_byte_sequence = first byte begins with 1110 (0xe0..0xef), next two with 10 (0x80..9xbf);
-        #     four_byte_sequence  = first byte begins with 11110 (0xf0..0xf7), next three with 10 (0x80..9xbf);
-        #
-        #     within the ranges specified, we also exclude these illegal sequences:
-        #       1100000x (c0 c1)    overlong encoding, lead byte of 2 byte seq but code point <= 127
-        #       11110101 (f5)       restricted by RFC 3629 lead byte of 4-byte sequence for codepoint above 10ffff
-        #       1111011x (f6, f7)   restricted by RFC 3629 lead byte of 4-byte sequence for codepoint above 10ffff
-        (0x01..0x1f | 0x7f)                             @non_printable_ascii        |
-        (0xc2..0xdf 0x80..0xbf)                         @two_byte_utf8_sequence     |
-        (0xe0..0xef 0x80..0xbf 0x80..0xbf)              @three_byte_utf8_sequence   |
-        (0xf0..0xf4 0x80..0xbf 0x80..0xbf 0x80..0xbf)   @four_byte_utf8_sequence
+        # here is where we handle everything else
+        (0x01..0x1f | 0x7f)                             @non_printable_ascii 
         {
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(ALNUM);
-                fbreak;
-              break;
-              case DEFAULT :
-                EMIT(ALNUM);
-                fbreak;
-              break;
-              default :
                 EMIT(SKIP);
                 fbreak;
-              break;
-            }
-            out->column_stop = out->column_start + 1;
         };
 
     *|;
@@ -864,6 +845,7 @@ void next_token(token_t *out, token_t *last_token, char *p, char *pe,
     int     act;        // identity of last patterned matched (scanner)
     int     state;      // the current state in parser
     int     opening;    // the last opening token type in parser
+    char    error_msg[1000];
     %% write init;
     %% write exec;
     if (cs == wikitext_error)
