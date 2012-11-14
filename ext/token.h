@@ -108,7 +108,6 @@ enum token_types {
     SPECIAL_URI_CHARS,
     PRINTABLE,
     ALNUM,
-    DEFAULT,
     END_OF_FILE,
     TABLE_START,
     TABLE_END,
@@ -117,6 +116,16 @@ enum token_types {
     SPECIAL_LINK_START,
     SL,
     CL,
+    SKIP
+};
+
+enum state_types {
+    DEFAULT, 
+    BLIND, 
+    BLIND_LINK, 
+    INNER_LINK, 
+    LINK, 
+    NOWIKI
 };
 
 VALUE Wikitext_parser_token_types(VALUE self);

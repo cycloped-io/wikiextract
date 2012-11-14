@@ -37,6 +37,16 @@
 #define AT_END()    (p + 1 == pe)
 #define DISTANCE()  (p + 1 - ts)
 #define NEXT_CHAR() (*(p + 1))
+#define PRINT_STACK() do {printf("%i %i %i %i\n",token_stack[(*token_stack_size)-1], state_stack[(*state_stack_size)-1], *token_stack_size, *state_stack_size); } while(0)
+#define PUSH(type,state) do { token_stack[(*token_stack_size)++] = type; state_stack[(*state_stack_size)++] = state; } while (0)
+#define POP()       do { (*token_stack_size)--; (*state_stack_size)--; } while (0)
+#define LAST_TYPE() ( token_stack[(*token_stack_size)-1] )
+#define TODO()      do { } while (0)
+//#define ERROR(msg)  do { printf(msg); printf("\n"); } while (0)
+#define ERROR(msg)  do { printf(msg); printf("\n"); } while (0)
+#define GET_STATE() ( state_stack[(*state_stack_size)-1] )
+#define DEBUG(msg)  do { printf(msg); printf("\n"); } while (0)
+
 
 %%{
     machine wikitext;
@@ -86,144 +96,99 @@
 
     main := |*
 
-        '<nowiki>'i
+        ( '<nowiki>'i ) | ( '</nowiki>'i ) | ( '<blockquote>'i ) | ( '</blockquote>'i ) | 
+        ( '<strong>'i ) | ( '</strong>'i ) | ( '<em>'i ) | ( '</em>'i ) | ( '`' ) | 
+        ( '<tt>'i ) | ( '</tt>'i ) | uri | mail | '__NOTOC__'
         {
-            EMIT(NO_WIKI_START);
+            EMIT(SKIP);
             fbreak;
         };
 
-        '</nowiki>'i
+        ( '<pre>'i ) | ( '<pre lang="' alpha+ '">' ) | ( '<math>'i ) | ( '<timeline>'i )
         {
-            EMIT(NO_WIKI_END);
-            fbreak;
+            state = GET_STATE(); 
+            switch(state){
+              case BLIND :
+              case BLIND_LINK :
+              case INNER_LINK :
+              case LINK :
+              case DEFAULT :
+                PUSH(PRE_START,NOWIKI);
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
-        '<pre>'i
+        ( '</pre>'i ) | ( '</math>'i ) | ( '</timeline>'i )
         {
-            EMIT(PRE_START);
-            fbreak;
-        };
-
-        '<pre lang="' alpha+ '">'
-        {
-            EMIT(PRE_START);
-            fbreak;
-        };
-
-        '</pre>'i
-        {
-            EMIT(PRE_END);
-            fbreak;
-        };
-
-        '<blockquote>'i
-        {
-            EMIT(BLOCKQUOTE_START);
-            fbreak;
-        };
-
-        '</blockquote>'i
-        {
-            EMIT(BLOCKQUOTE_END);
-            fbreak;
-        };
-
-        '<math>'i
-        {
-            EMIT(MATH_START);
-            fbreak;
-        };
-
-        '</math>'i
-        {
-            EMIT(MATH_END);
-            fbreak;
-        };
-
-        '<timeline>'i
-        {
-            EMIT(MATH_START);
-            fbreak;
-        };
-
-        '</timeline>'i
-        {
-            EMIT(MATH_END);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case NOWIKI :
+                opening = LAST_TYPE();
+                if(opening == PRE_START)
+                  POP(); 
+              break;
+              case BLIND :
+              case BLIND_LINK :
+              case INNER_LINK :
+              case LINK :
+              case DEFAULT :
+                ERROR("Closing token without opening token");
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
 
         "'"{1,5}
         {
-            if (DISTANCE() == 5)
-                EMIT(STRONG_EM);
-            else if (DISTANCE() == 4)
-            {
-                p--;
-                EMIT(STRONG_EM);
-            }
-            else if (DISTANCE() == 3)
-                EMIT(STRONG);
-            else if (DISTANCE() == 2)
-                EMIT(EM);
-            else
+            if (DISTANCE() > 1) {
+              EMIT(SKIP);
+              fbreak;
+            } else {
+              if(GET_STATE() == DEFAULT) {
                 EMIT(PRINTABLE);
-            fbreak;
+                fbreak;
+              }
+            }
         };
 
-        '<strong>'i
-        {
-            EMIT(STRONG_START);
-            fbreak;
-        };
-
-        '</strong>'i
-        {
-            EMIT(STRONG_END);
-            fbreak;
-        };
-
-        '<em>'i
-        {
-            EMIT(EM_START);
-            fbreak;
-        };
-
-        '</em>'i
-        {
-            EMIT(EM_END);
-            fbreak;
-        };
-
-        '`'
-        {
-            EMIT(TT);
-            fbreak;
-        };
-
-        '<tt>'i
-        {
-            EMIT(TT_START);
-            fbreak;
-        };
-
-        '</tt>'i
-        {
-            EMIT(TT_END);
-            fbreak;
-        };
 
         # shorthand for <blockquote> and </blockquote>
         '>' @mark ' '?
         {
-            if (out->column_start == 1 || last_token_type == BLOCKQUOTE)
-                EMIT(BLOCKQUOTE);
-            else
-            {
-                REWIND();
-                EMIT(TAG_END);
+            if (out->column_start == 1 || last_token_type == BLOCKQUOTE) {
+              EMIT(SKIP);
+              fbreak;
+            } else {
+              REWIND();
+              state = GET_STATE();
+              switch(state){
+                case DEFAULT :
+                  EMIT(PRINTABLE);
+                  fbreak;
+                break;
+                case NOWIKI :
+                  opening = LAST_TYPE();
+                  if(opening == TAG_START) {
+                    POP(); 
+                    EMIT(SKIP);
+                    fbreak;
+                  }
+                break;
+                default :
+                  ERROR("Closing token without opening token");
+                  EMIT(SKIP);
+                  fbreak;
+                break;
+              }
             }
-            fbreak;
         };
 
         # shorthand for <pre> and </pre>
@@ -232,239 +197,359 @@
             if (out->column_start == 1 || last_token_type == BLOCKQUOTE)
             {
                 REWIND();
-                EMIT(PRE);
+                EMIT(SKIP);
+                fbreak;
+            } else {
+              state = GET_STATE();
+              switch(state){
+                case INNER_LINK :
+                case LINK :
+                  TODO(); // Push token
+                  EMIT(SPACE);
+                  fbreak;
+                break;
+                case DEFAULT :
+                  EMIT(SPACE);
+                  fbreak;
+                break;
+                default :
+                  EMIT(SKIP);
+                  fbreak;
+                break;
+              }
             }
-            else
-                EMIT(SPACE);
-            fbreak;
         };
 
-        '#'
+        ('#' | '*' | ';' | ':')+
         {
-            if (out->column_start == 1              ||
-                last_token_type == OL               ||
-                last_token_type == UL               ||
-                last_token_type == SL               ||
-                last_token_type == CL               ||
-                last_token_type == BLOCKQUOTE       ||
-                last_token_type == BLOCKQUOTE_START)
-                EMIT(OL);
+            if (out->column_start == 1 )
+                EMIT(SKIP);
             else
-                EMIT(PRINTABLE);
-            fbreak;
-        };
-
-        '*'
-        {
-            if (out->column_start == 1              ||
-                last_token_type == OL               ||
-                last_token_type == UL               ||
-                last_token_type == SL               ||
-                last_token_type == CL               ||
-                last_token_type == BLOCKQUOTE       ||
-                last_token_type == BLOCKQUOTE_START)
-                EMIT(UL);
-            else
-                EMIT(PRINTABLE);
-            fbreak;
-        };
-
-        ';'
-        {
-            if (out->column_start == 1              ||
-                last_token_type == OL               ||
-                last_token_type == UL               ||
-                last_token_type == SL               ||
-                last_token_type == CL               ||
-                last_token_type == BLOCKQUOTE       ||
-                last_token_type == BLOCKQUOTE_START)
-                EMIT(SL);
-            else
-                EMIT(PRINTABLE);
-            fbreak;
-        };
-
-        ':'
-        {
-            if (out->column_start == 1              ||
-                last_token_type == OL               ||
-                last_token_type == UL               ||
-                last_token_type == SL               ||
-                last_token_type == CL               ||
-                last_token_type == BLOCKQUOTE       ||
-                last_token_type == BLOCKQUOTE_START)
-                EMIT(CL);
-            else
-                EMIT(PRINTABLE);
+              if(GET_STATE() == DEFAULT)
+                EMIT(PRINTABLE);             
+              else
+                EMIT(SKIP);
             fbreak;
         };
 
         '='+ @mark ' '*
         {
-            if (out->column_start == 1 || last_token_type == BLOCKQUOTE || last_token_type == BLOCKQUOTE_START)
+            if (out->column_start == 1)
             {
                 REWIND();
-                if (DISTANCE() == 1)
-                    EMIT(H1_START);
-                else if (DISTANCE() == 2)
-                    EMIT(H2_START);
-                else if (DISTANCE() == 3)
-                    EMIT(H3_START);
-                else if (DISTANCE() == 4)
-                    EMIT(H4_START);
-                else if (DISTANCE() == 5)
-                    EMIT(H5_START);
-                else if (DISTANCE() == 6)
-                    EMIT(H6_START);
-                else if (DISTANCE() > 6)
-                {
+                if (DISTANCE() <= 6) {
+                  if (GET_STATE() == DEFAULT){
+                    EMIT(CRLF);
+                    fbreak;
+                  }
+                } else {
                     p = ts + 6;
-                    EMIT(H6_START);
+                    EMIT(SKIP);
+                    fbreak;
                 }
             }
             else if (AT_END() || NEXT_CHAR() == '\n' || NEXT_CHAR() == '\r')
             {
                 REWIND();
-                if (DISTANCE() == 1)
-                    EMIT(H1_END);
-                else if (DISTANCE() == 2)
-                    EMIT(H2_END);
-                else if (DISTANCE() == 3)
-                    EMIT(H3_END);
-                else if (DISTANCE() == 4)
-                    EMIT(H4_END);
-                else if (DISTANCE() == 5)
-                    EMIT(H5_END);
-                else if (DISTANCE() == 6)
-                    EMIT(H6_END);
-                else if (DISTANCE() > 6)
-                {
+                if (DISTANCE() <= 6) {
+                  if (GET_STATE() == DEFAULT){
+                    EMIT(CRLF);
+                    fbreak;
+                  } else {
+                    EMIT(SKIP);
+                    fbreak;
+                  }
+                } else {
                     p -= 6; // will scan the H6 on the next scan
-                    EMIT(PRINTABLE);
+                    if (GET_STATE() == DEFAULT){
+                      EMIT(PRINTABLE);
+                      fbreak;
+                    }
                 }
             }
             else
             {
                 // note that a H*_END token will never match before a BLOCKQUOTE_END
                 REWIND();
-                EMIT(PRINTABLE);
+                if(GET_STATE() == DEFAULT)
+                  EMIT(PRINTABLE);
+                else
+                  EMIT(SKIP);
+                fbreak;
             }
-            fbreak;
         };
 
-        uri
+        
+        '[[' (alpha | '-')* ':'
         {
-            EMIT(URI);
-            fbreak;
-        };
-
-        mail
-        {
-            EMIT(MAIL);
-            fbreak;
-        };
-
-        path
-        {
-            EMIT(PATH);
-            fbreak;
-        };
-
-        '__NOTOC__'
-        {
-            EMIT(URI);
-            fbreak;
-        };
-
-        '[[' alpha* ':'
-        {
-            EMIT(SPECIAL_LINK_START);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+              case BLIND_LINK :
+                PUSH(SPECIAL_LINK_START,BLIND_LINK);
+              break;
+              case INNER_LINK :
+              case LINK :
+                PUSH(SPECIAL_LINK_START,INNER_LINK);
+              break;
+              case DEFAULT :
+                PUSH(LINK_START,LINK);
+                EMIT(SPECIAL_LINK_START);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         '[['
         {
-            EMIT(LINK_START);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+              case BLIND_LINK :
+                PUSH(LINK_START,BLIND_LINK);
+              break;
+              case INNER_LINK :
+              case LINK :
+                PUSH(LINK_START,INNER_LINK);
+              break;
+              case DEFAULT :
+                PUSH(LINK_START,LINK);
+                EMIT(LINK_START);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         ']]'
         {
-            EMIT(LINK_END);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+                if(LAST_TYPE() == SPECIAL_LINK_START) {
+                  POP();
+                  EMIT(SKIP);
+                  fbreak;
+                } else
+                  ERROR("Non-matching tokens");
+              break;
+              case BLIND_LINK :
+              case INNER_LINK :
+                POP();
+                EMIT(SKIP);
+                fbreak;
+              break;
+              case LINK :
+                POP();
+                TODO(); //Close link tag                 
+                EMIT(LINK_END);
+                fbreak;
+              break;
+              case DEFAULT :
+                PRINT_STACK();
+                ERROR("Closing tag without opening");
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         '{|'
         {
-            EMIT(TABLE_START);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+              case BLIND_LINK :
+              case INNER_LINK :
+              case LINK :
+              case DEFAULT :
+                PUSH(TABLE_START,BLIND);
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
-        '|}}'
+        '|}}' | '}}'
         {
-            EMIT(IMG_END);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+                opening = LAST_TYPE();
+                if(opening == IMG_START){
+                  POP();
+                  EMIT(SKIP);
+                  fbreak;
+                } else {
+                  ERROR("Non-matching tokens");
+                  EMIT(SKIP);
+                  fbreak;
+                }
+              break;
+              case BLIND_LINK :
+              case INNER_LINK :
+              case LINK :
+                ERROR("Non-matching tokens");
+                EMIT(SKIP);
+                fbreak;
+              break;
+              case DEFAULT :
+                ERROR("Closing without opening");
+                EMIT(SKIP);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
 
         '|}'
         {
-            EMIT(TABLE_END);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+                opening = LAST_TYPE();
+                if(opening == TABLE_START){
+                  POP();
+                } else {
+                  ERROR("Non-matching tokens");
+                }
+              break;
+              case BLIND_LINK :
+              case INNER_LINK :
+              case LINK :
+                ERROR("Non-matching tokens");
+                EMIT(SKIP);
+                fbreak;
+              break;
+              case DEFAULT :
+                ERROR("Closing without opening");
+                EMIT(SKIP);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         '|'
         {
+          if(GET_STATE() == LINK){
             EMIT(SEPARATOR);
             fbreak;
+          } else {
+            EMIT(SKIP);
+            fbreak;
+          }
         };
 
         '['
         {
-            EMIT(EXT_LINK_START);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+              case BLIND_LINK :
+                PUSH(EXT_LINK_START,BLIND_LINK);
+              break;
+              case INNER_LINK :
+              case LINK :
+                PUSH(EXT_LINK_START,INNER_LINK);
+              break;
+              case DEFAULT :
+                PUSH(EXT_LINK_START,LINK);
+                EMIT(EXT_LINK_START);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         ']'
         {
-            EMIT(EXT_LINK_END);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+                ERROR("Non-matching tokens");
+                EMIT(SKIP);
+                fbreak;
+              break;
+              case BLIND_LINK :
+              case INNER_LINK :
+                POP();
+                EMIT(SKIP);
+                fbreak;
+              break;
+              case LINK :
+                POP();
+                TODO(); //Close link tag                 
+                EMIT(EXT_LINK_END);
+                fbreak;
+              case DEFAULT :
+                ERROR("Closing tag without opening");
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         '&quot;'
         {
-            EMIT(QUOT_ENTITY);
+            EMIT(SKIP);
             fbreak;
         };
 
         '&amp;'
         {
-            EMIT(AMP_ENTITY);
+            EMIT(PRINTABLE);
             fbreak;
         };
 
         '&' alpha+ digit* ';'
         {
-            EMIT(NAMED_ENTITY);
+            EMIT(SKIP);
             fbreak;
         };
 
         '&#' [xX] xdigit+ ';'
         {
-            EMIT(HEX_ENTITY);
+            EMIT(SKIP);
             fbreak;
         };
 
         '&#' digit+ ';'
         {
-            EMIT(DECIMAL_ENTITY);
+            EMIT(SKIP);
             fbreak;
         };
 
         '"'
         {
-            EMIT(QUOT);
-            fbreak;
+          if(GET_STATE() == DEFAULT)
+            EMIT(PRINTABLE);
+          else
+            EMIT(SKIP);
+          fbreak;
         };
 
         '&'
@@ -473,63 +558,150 @@
             fbreak;
         };
 
-        '<' alpha
+        ( '<' alpha ) |  '</' | '<!'
         {
-            EMIT(TAG_START);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+              case BLIND_LINK :
+              case INNER_LINK :
+              case LINK :
+              case DEFAULT :
+                PUSH(TAG_START,NOWIKI);
+                EMIT(SKIP);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
-
-        '<' '/'
-        {
-            EMIT(TAG_START);
-            fbreak;
-        };
-
-        '<' '!'
-        {
-            EMIT(TAG_START);
-            fbreak;
-        };
-
+        
         '<'
         {
-            EMIT(DEFAULT);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              case DEFAULT :
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         '>'
         {
-            EMIT(TAG_END);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case DEFAULT :
+                EMIT(PRINTABLE);
+                fbreak;
+              break;
+              case NOWIKI :
+                opening = LAST_TYPE();
+                if(opening == TAG_START) {
+                  POP(); 
+                  EMIT(SKIP);
+                  fbreak;
+                }
+              break;
+              default :
+                ERROR("Closing token without opening token");
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         '{{'
         {
-            EMIT(IMG_START);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case BLIND :
+              case BLIND_LINK :
+              case INNER_LINK :
+              case LINK :
+              case DEFAULT :
+                PUSH(IMG_START,BLIND);
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
-        '}}'
-        {
-            EMIT(IMG_END);
-            fbreak;
-        };
 
         '{'
         {
-            EMIT(LEFT_CURLY);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(PRINTABLE);
+                fbreak;
+              break;
+              case DEFAULT :
+                EMIT(PRINTABLE);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         '}'
         {
-            EMIT(RIGHT_CURLY);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(PRINTABLE);
+                fbreak;
+              break;
+              case DEFAULT :
+                EMIT(PRINTABLE);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         ("\r"? "\n") | "\r"
         {
-            EMIT(CRLF);
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                ERROR("Unclosed link");
+                TODO(); // Print tokens
+                POP();
+                EMIT(CRLF);
+              break;
+              case DEFAULT :
+                EMIT(CRLF);
+              break;
+              default :
+                EMIT(SKIP);
+              break;
+            }
             out->column_stop = 1;
             out->line_stop++;
             fbreak;
@@ -542,14 +714,44 @@
         #   Email me (user@example.com) for more info.
         special_uri_chars
         {
-            EMIT(SPECIAL_URI_CHARS);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              case DEFAULT :
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         alnum+
         {
-            EMIT(ALNUM);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              case DEFAULT :
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         # all the printable ASCII characters (0x20 to 0x7e) excluding those explicitly covered elsewhere:
@@ -560,8 +762,23 @@
         # curly brace (0x7b), vertical bar (0x7c) and right curly brace (0x7d).
         (0x24..0x25 | 0x2b | 0x2d | 0x2f | 0x40 | 0x5c | 0x5e..0x5f | 0x7e)+
         {
-            EMIT(PRINTABLE);
-            fbreak;
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              case DEFAULT :
+                EMIT(PRINTABLE);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
         };
 
         # here is where we handle the UTF-8 and everything else
@@ -580,9 +797,24 @@
         (0xe0..0xef 0x80..0xbf 0x80..0xbf)              @three_byte_utf8_sequence   |
         (0xf0..0xf4 0x80..0xbf 0x80..0xbf 0x80..0xbf)   @four_byte_utf8_sequence
         {
-            EMIT(DEFAULT);
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              case DEFAULT :
+                EMIT(ALNUM);
+                fbreak;
+              break;
+              default :
+                EMIT(SKIP);
+                fbreak;
+              break;
+            }
             out->column_stop = out->column_start + 1;
-            fbreak;
         };
 
     *|;
@@ -595,7 +827,8 @@
 // pass in the last token because that's useful for the scanner to know
 // p data pointer (required by Ragel machine); overriden with contents of last_token if supplied
 // pe data end pointer (required by Ragel machine)
-void next_token(token_t *out, token_t *last_token, char *p, char *pe)
+void next_token(token_t *out, token_t *last_token, char *p, char *pe,
+  int * token_stack, int * state_stack, int * token_stack_size, int * state_stack_size)
 {
     int last_token_type = NO_TOKEN;
     if (last_token)
@@ -629,10 +862,15 @@ void next_token(token_t *out, token_t *last_token, char *p, char *pe)
     char    *ts;        // token start (scanner)
     char    *te;        // token end (scanner)
     int     act;        // identity of last patterned matched (scanner)
+    int     state;      // the current state in parser
+    int     opening;    // the last opening token type in parser
     %% write init;
     %% write exec;
     if (cs == wikitext_error)
         rb_raise(eWikitextParserError, "failed before finding a token");
-    else if (out->type == NO_TOKEN)
-        rb_raise(eWikitextParserError, "failed to produce a token");
+    else if (out->type == NO_TOKEN){
+        out->stop = p;
+        out->type = END_OF_FILE;
+        //rb_raise(eWikitextParserError, "failed to produce a token");
+    }
 }

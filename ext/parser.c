@@ -118,13 +118,21 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string)
     char *p = RSTRING_PTR(string);
     long len = RSTRING_LEN(string);
     char *pe = p + len;
+    int ts[100]; //TODO add checks
+    int ss[100]; //TODO add checks
+    int ts_size = 1 ;
+    int ss_size = 1 ;
+    ss[0] = 0;
+    ts[0] = 0;
     token_t token;
-    next_token(&token, NULL, p, pe);
-    rb_ary_push(tokens, wiki_token(&token));
+    next_token(&token, NULL, p, pe, ts, ss, &ts_size, &ss_size);
+    if(token.type != SKIP)
+      rb_ary_push(tokens, wiki_token(&token));
     while (token.type != END_OF_FILE)
     {
-        next_token(&token, &token, NULL, pe);
-        rb_ary_push(tokens, wiki_token(&token));
+        next_token(&token, &token, NULL, pe, ts, ss, &ts_size, &ss_size);
+        if(token.type != SKIP)
+          rb_ary_push(tokens, wiki_token(&token));
     }
     return tokens;
 }
