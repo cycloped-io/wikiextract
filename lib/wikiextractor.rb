@@ -32,6 +32,7 @@ module Wikitext
 
     def initialize
       @out = CSV.open("test.csv","w")
+      @links = CSV.open("links.csv","w")
     end
 
     def print(contents)
@@ -51,6 +52,7 @@ module Wikitext
 
     def close
       @out.close
+      @links.close
     end
 
     def crlf_stats
@@ -141,6 +143,8 @@ module Wikitext
     end
 
     def finish_link(token=nil)
+      return if @link_head.empty?
+      concept_name = @link_head.map(&:string_value).join("")
       if token
         if @link_tail.last
           last_token = @link_tail.last
@@ -152,13 +156,18 @@ module Wikitext
           @link_tail = [token]
         end
       end
-      @link_head.each do |token|
+      if @link_tail.empty?
+        @link_tail = @link_head
       end
-      print "[".hl(:green)
+      link_name = @link_tail.map(&:string_value).join("")
+      @links << [@id,@link_head.first.line_start,@link_tail.last.line_stop,
+                 @link_head.first.column_start,@link_tail.last.column_stop,
+                 concept_name,link_name]
+      #print "[".hl(:green)
       @link_tail.each do |token|
         print_token(token,token.string_value,@out)
       end
-      print "]".hl(:green)
+      #print "]".hl(:green)
     end
 
     def link_head(tokens)
@@ -172,7 +181,7 @@ module Wikitext
     def print_token(token,str,out)
       out << [@id,token.token_type,token.line_start,token.line_stop,
                token.column_start,token.column_stop,str]
-      print str
+      #print str
     end
 
     def end_of_file_action(id)
