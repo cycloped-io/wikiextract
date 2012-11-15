@@ -24,4 +24,5 @@
 #include "token.h"
 
 void next_token(token_t *out, token_t *last_token, char *p, char *pe,
-  int * token_stack, int * state_stack, int * token_stack_size, int * state_stack_size);
+  int * token_stack, int * state_stack, int * token_stack_size, int * state_stack_size,
+  FILE * file_desc, int doc_id);

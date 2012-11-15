@@ -117,7 +117,8 @@ enum token_types {
     SL,
     CL,
     NUM,
-    SKIP
+    SKIP,
+    UNCLOSED
 };
 
 enum state_types {

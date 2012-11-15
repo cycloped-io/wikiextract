@@ -33,6 +33,7 @@
 #include "wikitext.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #define EMIT(t)     do { out->type = t; out->stop = p + 1; out->column_stop += (out->stop - out->start); } while (0)
 #define MARK()      do { mark = p; } while (0)
@@ -48,10 +49,12 @@
 #define ERROR(msg)  do { printf("[31;1m"); printf(msg); printf("[0m: "); strncpy(error_msg,out->start,p-out->start+1); error_msg[p-out->start+1] = 0; printf("%s\n",error_msg);} while (0)
 #define GET_STATE() ( state_stack[(*state_stack_size)-1] )
 #define DEBUG(msg)  do { printf(msg); printf("\n"); } while (0)
+#define PRINT(type) do { EMIT(SKIP); fprintf(file_p,"%i,%s,%i,%i,%i,%i,",doc_id,type,(int)out->line_start, (int)out->line_stop,(int)out->column_start,(int)out->column_stop); fwrite(out->start,1,p+1-out->start,file_p); fprintf(file_p,"\n"); } while (0)
+#define PRINT_CRLF() do { EMIT(SKIP); fprintf(file_p,"%i,crlf,%i,%i,%i,%i,\\n",doc_id,(int)out->line_start, (int)out->line_stop,(int)out->column_start,(int)out->column_stop); fprintf(file_p,"\n"); } while (0)
 
 
 
-#line 55 "wikitext_ragel.c"
+#line 58 "wikitext_ragel.c"
 static const int wikitext_start = 103;
 static const int wikitext_first_final = 103;
 static const int wikitext_error = 0;
@@ -59,16 +62,12 @@ static const int wikitext_error = 0;
 static const int wikitext_en_main = 103;
 
 
-#line 805 "wikitext_ragel.rl"
+#line 731 "wikitext_ragel.rl"
 
 
-// for now we use the scanner as a tokenizer that returns one token at a time, just like ANTLR
-// ultimately we could look at embedding all of the transformation inside the scanner itself (combined scanner/parser)
-// pass in the last token because that's useful for the scanner to know
-// p data pointer (required by Ragel machine); overriden with contents of last_token if supplied
-// pe data end pointer (required by Ragel machine)
 void next_token(token_t *out, token_t *last_token, char *p, char *pe,
-  int * token_stack, int * state_stack, int * token_stack_size, int * state_stack_size)
+  int * token_stack, int * state_stack, int * token_stack_size, int * state_stack_size,
+  FILE * file_p, int doc_id)
 {
     int last_token_type = NO_TOKEN;
     if (last_token)
@@ -106,7 +105,7 @@ void next_token(token_t *out, token_t *last_token, char *p, char *pe,
     int     opening;    // the last opening token type in parser
     char    error_msg[1000];
     
-#line 110 "wikitext_ragel.c"
+#line 109 "wikitext_ragel.c"
 	{
 	cs = wikitext_start;
 	ts = 0;
@@ -114,9 +113,9 @@ void next_token(token_t *out, token_t *last_token, char *p, char *pe,
 	act = 0;
 	}
 
-#line 851 "wikitext_ragel.rl"
+#line 773 "wikitext_ragel.rl"
     
-#line 120 "wikitext_ragel.c"
+#line 119 "wikitext_ragel.c"
 	{
 	if ( p == pe )
 		goto _test_eof;
@@ -165,6 +164,48 @@ tr0:
             }
         }
 	break;
+	case 28:
+	{{p = ((te))-1;}
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(PRINTABLE);
+                {p++; cs = 103; goto _out;}
+              break;
+              case DEFAULT :
+                PRINT("printable");
+                {p++; cs = 103; goto _out;}
+              break;
+              default :
+                EMIT(SKIP);
+                {p++; cs = 103; goto _out;}
+              break;
+            }
+        }
+	break;
+	case 29:
+	{{p = ((te))-1;}
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(NUM);
+                {p++; cs = 103; goto _out;}
+              break;
+              case DEFAULT :
+                PRINT("num");
+                {p++; cs = 103; goto _out;}
+              break;
+              default :
+                EMIT(SKIP);
+                {p++; cs = 103; goto _out;}
+              break;
+            }
+        }
+	break;
 	case 30:
 	{{p = ((te))-1;}
             state = GET_STATE();
@@ -172,74 +213,11 @@ tr0:
               case INNER_LINK :
               case LINK :
                 TODO(); // Push token
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              case DEFAULT :
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              default :
-                EMIT(SKIP);
-                {p++; cs = 103; goto _out;}
-              break;
-            }
-        }
-	break;
-	case 32:
-	{{p = ((te))-1;}
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              case DEFAULT :
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              default :
-                EMIT(SKIP);
-                {p++; cs = 103; goto _out;}
-              break;
-            }
-        }
-	break;
-	case 33:
-	{{p = ((te))-1;}
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(NUM);
-                {p++; cs = 103; goto _out;}
-              break;
-              case DEFAULT :
-                EMIT(NUM);
-                {p++; cs = 103; goto _out;}
-              break;
-              default :
-                EMIT(SKIP);
-                {p++; cs = 103; goto _out;}
-              break;
-            }
-        }
-	break;
-	case 34:
-	{{p = ((te))-1;}
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
                 EMIT(ALNUM);
                 {p++; cs = 103; goto _out;}
               break;
               case DEFAULT :
-                EMIT(ALNUM);
+                PRINT("alnum");
                 {p++; cs = 103; goto _out;}
               break;
               default :
@@ -253,52 +231,64 @@ tr0:
 	}
 	goto st103;
 tr7:
-#line 555 "wikitext_ragel.rl"
+#line 655 "wikitext_ragel.rl"
 	{{p = ((te))-1;}{
-          if(GET_STATE() == DEFAULT)
-            EMIT(PRINTABLE);
-          else
-            EMIT(SKIP);
-          {p++; cs = 103; goto _out;}
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(PRINTABLE);
+                {p++; cs = 103; goto _out;}
+              break;
+              case DEFAULT :
+                PRINT("printable");
+                {p++; cs = 103; goto _out;}
+              break;
+              default :
+                EMIT(SKIP);
+                {p++; cs = 103; goto _out;}
+              break;
+            }
         }}
 	goto st103;
 tr10:
-#line 540 "wikitext_ragel.rl"
+#line 543 "wikitext_ragel.rl"
 	{te = p+1;{
             EMIT(SKIP);
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
 tr12:
-#line 534 "wikitext_ragel.rl"
+#line 537 "wikitext_ragel.rl"
 	{te = p+1;{
             EMIT(SKIP);
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
 tr14:
-#line 528 "wikitext_ragel.rl"
+#line 531 "wikitext_ragel.rl"
 	{te = p+1;{
             EMIT(SKIP);
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
 tr18:
-#line 522 "wikitext_ragel.rl"
+#line 525 "wikitext_ragel.rl"
 	{te = p+1;{
           EMIT(SKIP);
           {p++; cs = 103; goto _out;}
         }}
 	goto st103;
 tr22:
-#line 516 "wikitext_ragel.rl"
+#line 519 "wikitext_ragel.rl"
 	{te = p+1;{
             EMIT(SKIP);
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
 tr29:
-#line 739 "wikitext_ragel.rl"
+#line 676 "wikitext_ragel.rl"
 	{{p = ((te))-1;}{
             state = GET_STATE();
             switch(state){
@@ -309,7 +299,7 @@ tr29:
                 {p++; cs = 103; goto _out;}
               break;
               case DEFAULT :
-                EMIT(NUM);
+                PRINT("num");
                 {p++; cs = 103; goto _out;}
               break;
               default :
@@ -320,7 +310,7 @@ tr29:
         }}
 	goto st103;
 tr32:
-#line 564 "wikitext_ragel.rl"
+#line 549 "wikitext_ragel.rl"
 	{{p = ((te))-1;}{
             state = GET_STATE();
             switch(state){
@@ -341,14 +331,14 @@ tr32:
         }}
 	goto st103;
 tr42:
-#line 102 "wikitext_ragel.rl"
+#line 105 "wikitext_ragel.rl"
 	{te = p+1;{
             EMIT(SKIP);
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
 tr46:
-#line 127 "wikitext_ragel.rl"
+#line 130 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -376,7 +366,7 @@ tr46:
         }}
 	goto st103;
 tr64:
-#line 109 "wikitext_ragel.rl"
+#line 112 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE(); 
             switch(state){
@@ -395,7 +385,7 @@ tr64:
         }}
 	goto st103;
 tr87:
-#line 775 "wikitext_ragel.rl"
+#line 701 "wikitext_ragel.rl"
 	{{p = ((te))-1;}{
             state = GET_STATE();
             switch(state){
@@ -406,7 +396,7 @@ tr87:
                 {p++; cs = 103; goto _out;}
               break;
               case DEFAULT :
-                EMIT(ALNUM);
+                PRINT("alnum");
                 {p++; cs = 103; goto _out;}
               break;
               default :
@@ -417,7 +407,7 @@ tr87:
         }}
 	goto st103;
 tr91:
-#line 307 "wikitext_ragel.rl"
+#line 310 "wikitext_ragel.rl"
 	{{p = ((te))-1;}{
             state = GET_STATE();
             switch(state){
@@ -442,7 +432,7 @@ tr91:
         }}
 	goto st103;
 tr93:
-#line 289 "wikitext_ragel.rl"
+#line 292 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -460,41 +450,19 @@ tr93:
             }
         }}
 	goto st103;
-tr94:
-#line 718 "wikitext_ragel.rl"
-	{{p = ((te))-1;}{
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              case DEFAULT :
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              default :
+tr105:
+#line 63 "wikitext_ragel.rl"
+	{
+        out->code_point = *p & 0x7f;
+    }
+#line 723 "wikitext_ragel.rl"
+	{te = p+1;{
                 EMIT(SKIP);
                 {p++; cs = 103; goto _out;}
-              break;
-            }
         }}
 	goto st103;
 tr106:
-#line 60 "wikitext_ragel.rl"
-	{
-        out->code_point = *p & 0x7f;
-    }
-#line 797 "wikitext_ragel.rl"
-	{te = p+1;{
-                EMIT(SKIP);
-                {p++; cs = 103; goto _out;}
-        }}
-	goto st103;
-tr107:
-#line 690 "wikitext_ragel.rl"
+#line 632 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -503,10 +471,10 @@ tr107:
                 ERROR("Unclosed link");
                 TODO(); // Print tokens
                 POP();
-                EMIT(CRLF);
+                EMIT(UNCLOSED);
               break;
               case DEFAULT :
-                EMIT(CRLF);
+                PRINT_CRLF();
               break;
               default :
                 EMIT(SKIP);
@@ -516,13 +484,13 @@ tr107:
             out->line_stop++;
             {p++; cs = 103; goto _out;}
         }}
-#line 60 "wikitext_ragel.rl"
+#line 63 "wikitext_ragel.rl"
 	{
         out->code_point = *p & 0x7f;
     }
 	goto st103;
-tr110:
-#line 718 "wikitext_ragel.rl"
+tr109:
+#line 655 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -533,7 +501,7 @@ tr110:
                 {p++; cs = 103; goto _out;}
               break;
               case DEFAULT :
-                EMIT(PRINTABLE);
+                PRINT("printable");
                 {p++; cs = 103; goto _out;}
               break;
               default :
@@ -543,40 +511,30 @@ tr110:
             }
         }}
 	goto st103;
-tr111:
-#line 546 "wikitext_ragel.rl"
-	{te = p+1;{
-          if(GET_STATE() == DEFAULT)
-            EMIT(PRINTABLE);
-          else
-            EMIT(SKIP);
-          {p++; cs = 103; goto _out;}
+tr129:
+#line 701 "wikitext_ragel.rl"
+	{te = p;p--;{
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(ALNUM);
+                {p++; cs = 103; goto _out;}
+              break;
+              case DEFAULT :
+                PRINT("alnum");
+                {p++; cs = 103; goto _out;}
+              break;
+              default :
+                EMIT(SKIP);
+                {p++; cs = 103; goto _out;}
+              break;
+            }
         }}
 	goto st103;
 tr131:
-#line 775 "wikitext_ragel.rl"
-	{te = p;p--;{
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(ALNUM);
-                {p++; cs = 103; goto _out;}
-              break;
-              case DEFAULT :
-                EMIT(ALNUM);
-                {p++; cs = 103; goto _out;}
-              break;
-              default :
-                EMIT(SKIP);
-                {p++; cs = 103; goto _out;}
-              break;
-            }
-        }}
-	goto st103;
-tr133:
-#line 690 "wikitext_ragel.rl"
+#line 632 "wikitext_ragel.rl"
 	{te = p;p--;{
             state = GET_STATE();
             switch(state){
@@ -585,10 +543,10 @@ tr133:
                 ERROR("Unclosed link");
                 TODO(); // Print tokens
                 POP();
-                EMIT(CRLF);
+                EMIT(UNCLOSED);
               break;
               case DEFAULT :
-                EMIT(CRLF);
+                PRINT_CRLF();
               break;
               default :
                 EMIT(SKIP);
@@ -599,8 +557,8 @@ tr133:
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
-tr134:
-#line 690 "wikitext_ragel.rl"
+tr132:
+#line 632 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -609,10 +567,10 @@ tr134:
                 ERROR("Unclosed link");
                 TODO(); // Print tokens
                 POP();
-                EMIT(CRLF);
+                EMIT(UNCLOSED);
               break;
               case DEFAULT :
-                EMIT(CRLF);
+                PRINT_CRLF();
               break;
               default :
                 EMIT(SKIP);
@@ -623,8 +581,8 @@ tr134:
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
-tr135:
-#line 201 "wikitext_ragel.rl"
+tr133:
+#line 204 "wikitext_ragel.rl"
 	{te = p;p--;{
             if (out->column_start == 1 || last_token_type == BLOCKQUOTE)
             {
@@ -641,7 +599,7 @@ tr135:
                   {p++; cs = 103; goto _out;}
                 break;
                 case DEFAULT :
-                  EMIT(SPACE);
+                  PRINT("space");
                   {p++; cs = 103; goto _out;}
                 break;
                 default :
@@ -652,66 +610,78 @@ tr135:
             }
         }}
 	goto st103;
-tr137:
-#line 229 "wikitext_ragel.rl"
+tr135:
+#line 232 "wikitext_ragel.rl"
 	{te = p;p--;{
             if (out->column_start == 1 )
                 EMIT(SKIP);
             else
               if(GET_STATE() == DEFAULT)
-                EMIT(PRINTABLE);             
+                PRINT("printable");
               else
                 EMIT(SKIP);
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
-tr138:
-#line 555 "wikitext_ragel.rl"
+tr136:
+#line 655 "wikitext_ragel.rl"
 	{te = p;p--;{
-          if(GET_STATE() == DEFAULT)
-            EMIT(PRINTABLE);
-          else
-            EMIT(SKIP);
-          {p++; cs = 103; goto _out;}
+            state = GET_STATE();
+            switch(state){
+              case INNER_LINK :
+              case LINK :
+                TODO(); // Push token
+                EMIT(PRINTABLE);
+                {p++; cs = 103; goto _out;}
+              break;
+              case DEFAULT :
+                PRINT("printable");
+                {p++; cs = 103; goto _out;}
+              break;
+              default :
+                EMIT(SKIP);
+                {p++; cs = 103; goto _out;}
+              break;
+            }
         }}
 	goto st103;
-tr142:
-#line 155 "wikitext_ragel.rl"
+tr140:
+#line 158 "wikitext_ragel.rl"
 	{te = p;p--;{
             if (DISTANCE() > 1) {
               EMIT(SKIP);
               {p++; cs = 103; goto _out;}
             } else {
               if(GET_STATE() == DEFAULT) {
-                EMIT(PRINTABLE);
+                PRINT("printable");
                 {p++; cs = 103; goto _out;}
               }
             }
         }}
 	goto st103;
-tr146:
-#line 155 "wikitext_ragel.rl"
+tr144:
+#line 158 "wikitext_ragel.rl"
 	{te = p+1;{
             if (DISTANCE() > 1) {
               EMIT(SKIP);
               {p++; cs = 103; goto _out;}
             } else {
               if(GET_STATE() == DEFAULT) {
-                EMIT(PRINTABLE);
+                PRINT("printable");
                 {p++; cs = 103; goto _out;}
               }
             }
         }}
 	goto st103;
-tr147:
-#line 102 "wikitext_ragel.rl"
+tr145:
+#line 105 "wikitext_ragel.rl"
 	{te = p;p--;{
             EMIT(SKIP);
             {p++; cs = 103; goto _out;}
         }}
 	goto st103;
-tr151:
-#line 739 "wikitext_ragel.rl"
+tr149:
+#line 676 "wikitext_ragel.rl"
 	{te = p;p--;{
             state = GET_STATE();
             switch(state){
@@ -722,7 +692,7 @@ tr151:
                 {p++; cs = 103; goto _out;}
               break;
               case DEFAULT :
-                EMIT(NUM);
+                PRINT("num");
                 {p++; cs = 103; goto _out;}
               break;
               default :
@@ -732,8 +702,8 @@ tr151:
             }
         }}
 	goto st103;
-tr154:
-#line 584 "wikitext_ragel.rl"
+tr152:
+#line 569 "wikitext_ragel.rl"
 	{te = p;p--;{
             state = GET_STATE();
             switch(state){
@@ -744,7 +714,7 @@ tr154:
                 {p++; cs = 103; goto _out;}
               break;
               case DEFAULT :
-                EMIT(ALNUM);
+                PRINT("alnum");
                 {p++; cs = 103; goto _out;}
               break;
               default :
@@ -754,8 +724,8 @@ tr154:
             }
         }}
 	goto st103;
-tr155:
-#line 564 "wikitext_ragel.rl"
+tr153:
+#line 549 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -775,8 +745,8 @@ tr155:
             }
         }}
 	goto st103;
-tr167:
-#line 564 "wikitext_ragel.rl"
+tr165:
+#line 549 "wikitext_ragel.rl"
 	{te = p;p--;{
             state = GET_STATE();
             switch(state){
@@ -796,15 +766,15 @@ tr167:
             }
         }}
 	goto st103;
-tr181:
-#line 241 "wikitext_ragel.rl"
+tr179:
+#line 244 "wikitext_ragel.rl"
 	{te = p;p--;{
             if (out->column_start == 1)
             {
                 REWIND();
                 if (DISTANCE() <= 6) {
                   if (GET_STATE() == DEFAULT){
-                    EMIT(CRLF);
+                    PRINT_CRLF();
                     {p++; cs = 103; goto _out;}
                   }
                 } else {
@@ -818,7 +788,7 @@ tr181:
                 REWIND();
                 if (DISTANCE() <= 6) {
                   if (GET_STATE() == DEFAULT){
-                    EMIT(CRLF);
+                    PRINT_CRLF();
                     {p++; cs = 103; goto _out;}
                   } else {
                     EMIT(SKIP);
@@ -827,7 +797,7 @@ tr181:
                 } else {
                     p -= 6; // will scan the H6 on the next scan
                     if (GET_STATE() == DEFAULT){
-                      EMIT(PRINTABLE);
+                      PRINT("printable");
                       {p++; cs = 103; goto _out;}
                     }
                 }
@@ -837,15 +807,15 @@ tr181:
                 // note that a H*_END token will never match before a BLOCKQUOTE_END
                 REWIND();
                 if(GET_STATE() == DEFAULT)
-                  EMIT(PRINTABLE);
+                  PRINT("printable");
                 else
                   EMIT(SKIP);
                 {p++; cs = 103; goto _out;}
             }
         }}
 	goto st103;
-tr183:
-#line 170 "wikitext_ragel.rl"
+tr181:
+#line 173 "wikitext_ragel.rl"
 	{te = p;p--;{
             if (out->column_start == 1 || last_token_type == BLOCKQUOTE) {
               EMIT(SKIP);
@@ -855,7 +825,7 @@ tr183:
               state = GET_STATE();
               switch(state){
                 case DEFAULT :
-                  EMIT(PRINTABLE);
+                  PRINT("printable");
                   {p++; cs = 103; goto _out;}
                 break;
                 case NOWIKI :
@@ -875,8 +845,8 @@ tr183:
             }
         }}
 	goto st103;
-tr184:
-#line 170 "wikitext_ragel.rl"
+tr182:
+#line 173 "wikitext_ragel.rl"
 	{te = p+1;{
             if (out->column_start == 1 || last_token_type == BLOCKQUOTE) {
               EMIT(SKIP);
@@ -886,7 +856,7 @@ tr184:
               state = GET_STATE();
               switch(state){
                 case DEFAULT :
-                  EMIT(PRINTABLE);
+                  PRINT("printable");
                   {p++; cs = 103; goto _out;}
                 break;
                 case NOWIKI :
@@ -906,8 +876,8 @@ tr184:
             }
         }}
 	goto st103;
-tr198:
-#line 462 "wikitext_ragel.rl"
+tr196:
+#line 465 "wikitext_ragel.rl"
 	{te = p;p--;{
             state = GET_STATE();
             switch(state){
@@ -931,8 +901,8 @@ tr198:
             }
         }}
 	goto st103;
-tr200:
-#line 307 "wikitext_ragel.rl"
+tr198:
+#line 310 "wikitext_ragel.rl"
 	{te = p;p--;{
             state = GET_STATE();
             switch(state){
@@ -956,8 +926,8 @@ tr200:
             }
         }}
 	goto st103;
-tr201:
-#line 486 "wikitext_ragel.rl"
+tr199:
+#line 489 "wikitext_ragel.rl"
 	{te = p;p--;{
             state = GET_STATE();
             switch(state){
@@ -987,8 +957,8 @@ tr201:
             }
         }}
 	goto st103;
-tr202:
-#line 331 "wikitext_ragel.rl"
+tr200:
+#line 334 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -1023,52 +993,8 @@ tr202:
             }
         }}
 	goto st103;
-tr203:
-#line 718 "wikitext_ragel.rl"
-	{te = p;p--;{
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              case DEFAULT :
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              default :
-                EMIT(SKIP);
-                {p++; cs = 103; goto _out;}
-              break;
-            }
-        }}
-	goto st103;
-tr205:
-#line 648 "wikitext_ragel.rl"
-	{te = p;p--;{
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              case DEFAULT :
-                EMIT(PRINTABLE);
-                {p++; cs = 103; goto _out;}
-              break;
-              default :
-                EMIT(SKIP);
-                {p++; cs = 103; goto _out;}
-              break;
-            }
-        }}
-	goto st103;
-tr206:
-#line 629 "wikitext_ragel.rl"
+tr202:
+#line 614 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -1086,8 +1012,8 @@ tr206:
             }
         }}
 	goto st103;
-tr207:
-#line 366 "wikitext_ragel.rl"
+tr203:
+#line 369 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -1105,8 +1031,8 @@ tr207:
             }
         }}
 	goto st103;
-tr208:
-#line 451 "wikitext_ragel.rl"
+tr204:
+#line 454 "wikitext_ragel.rl"
 	{te = p;p--;{
           if(GET_STATE() == LINK){
             EMIT(SEPARATOR);
@@ -1117,8 +1043,8 @@ tr208:
           }
         }}
 	goto st103;
-tr210:
-#line 384 "wikitext_ragel.rl"
+tr206:
+#line 387 "wikitext_ragel.rl"
 	{te = p+1;{
             state = GET_STATE();
             switch(state){
@@ -1163,39 +1089,38 @@ st103:
 case 103:
 #line 1 "NONE"
 	{ts = p;}
-#line 1167 "wikitext_ragel.c"
+#line 1093 "wikitext_ragel.c"
 	switch( (*p) ) {
-		case 10: goto tr107;
-		case 13: goto tr108;
-		case 32: goto tr109;
-		case 34: goto tr111;
+		case 10: goto tr106;
+		case 13: goto tr107;
+		case 32: goto tr108;
 		case 35: goto st107;
-		case 38: goto tr113;
+		case 38: goto tr111;
 		case 39: goto st109;
 		case 42: goto st107;
-		case 47: goto tr110;
+		case 47: goto tr109;
 		case 60: goto st122;
-		case 61: goto tr118;
-		case 62: goto tr119;
-		case 70: goto tr121;
-		case 72: goto tr122;
-		case 77: goto tr123;
-		case 83: goto tr124;
+		case 61: goto tr116;
+		case 62: goto tr117;
+		case 70: goto tr119;
+		case 72: goto tr120;
+		case 77: goto tr121;
+		case 83: goto tr122;
 		case 91: goto st153;
-		case 92: goto tr110;
+		case 92: goto tr109;
 		case 93: goto st155;
-		case 94: goto tr110;
-		case 95: goto tr127;
+		case 94: goto tr109;
+		case 95: goto tr125;
 		case 96: goto tr42;
-		case 102: goto tr121;
-		case 104: goto tr122;
-		case 109: goto tr123;
-		case 115: goto tr124;
+		case 102: goto tr119;
+		case 104: goto tr120;
+		case 109: goto tr121;
+		case 115: goto tr122;
 		case 123: goto st157;
 		case 124: goto st158;
-		case 125: goto tr130;
-		case 126: goto tr110;
-		case 127: goto tr106;
+		case 125: goto tr128;
+		case 126: goto tr109;
+		case 127: goto tr105;
 	}
 	if ( (*p) < 33 ) {
 		if ( (*p) < -32 ) {
@@ -1204,7 +1129,7 @@ case 103:
 		} else if ( (*p) > -17 ) {
 			if ( (*p) > -12 ) {
 				if ( 1 <= (*p) && (*p) <= 31 )
-					goto tr106;
+					goto tr105;
 			} else if ( (*p) >= -16 )
 				goto st4;
 		} else
@@ -1213,19 +1138,19 @@ case 103:
 		if ( (*p) < 58 ) {
 			if ( (*p) > 46 ) {
 				if ( 48 <= (*p) && (*p) <= 57 )
-					goto tr116;
+					goto tr114;
 			} else if ( (*p) >= 45 )
-				goto tr115;
+				goto tr113;
 		} else if ( (*p) > 59 ) {
 			if ( (*p) > 64 ) {
 				if ( 65 <= (*p) && (*p) <= 122 )
-					goto tr120;
+					goto tr118;
 			} else if ( (*p) >= 63 )
-				goto tr110;
+				goto tr109;
 		} else
 			goto st107;
 	} else
-		goto tr110;
+		goto tr109;
 	goto st0;
 st0:
 cs = 0;
@@ -1240,50 +1165,50 @@ case 1:
 tr1:
 #line 1 "NONE"
 	{te = p+1;}
-#line 65 "wikitext_ragel.rl"
+#line 68 "wikitext_ragel.rl"
 	{
         out->code_point = ((uint32_t)(*(p - 1)) & 0x1f) << 6 |
             (*p & 0x3f);
     }
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st104;
 tr3:
 #line 1 "NONE"
 	{te = p+1;}
-#line 71 "wikitext_ragel.rl"
+#line 74 "wikitext_ragel.rl"
 	{
         out->code_point = ((uint32_t)(*(p - 2)) & 0x0f) << 12 |
             ((uint32_t)(*(p - 1)) & 0x3f) << 6 |
             (*p & 0x3f);
     }
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st104;
 tr6:
 #line 1 "NONE"
 	{te = p+1;}
-#line 78 "wikitext_ragel.rl"
+#line 81 "wikitext_ragel.rl"
 	{
         out->code_point = ((uint32_t)(*(p - 3)) & 0x07) << 18 |
             ((uint32_t)(*(p - 2)) & 0x3f) << 12 |
             ((uint32_t)(*(p - 1)) & 0x3f) << 6 |
             (*p & 0x3f);
     }
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st104;
-tr132:
+tr130:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st104;
 st104:
 	if ( ++p == pe )
 		goto _test_eof104;
 case 104:
-#line 1287 "wikitext_ragel.c"
+#line 1212 "wikitext_ragel.c"
 	if ( (*p) < -16 ) {
 		if ( (*p) > -33 ) {
 			if ( -32 <= (*p) && (*p) <= -17 )
@@ -1293,15 +1218,15 @@ case 104:
 	} else if ( (*p) > -12 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr132;
+				goto tr130;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr132;
+				goto tr130;
 		} else
-			goto tr132;
+			goto tr130;
 	} else
 		goto st4;
-	goto tr131;
+	goto tr129;
 st2:
 	if ( ++p == pe )
 		goto _test_eof2;
@@ -1337,8 +1262,8 @@ case 6:
 	if ( (*p) <= -65 )
 		goto tr6;
 	goto tr0;
-tr108:
-#line 60 "wikitext_ragel.rl"
+tr107:
+#line 63 "wikitext_ragel.rl"
 	{
         out->code_point = *p & 0x7f;
     }
@@ -1347,12 +1272,12 @@ st105:
 	if ( ++p == pe )
 		goto _test_eof105;
 case 105:
-#line 1351 "wikitext_ragel.c"
+#line 1276 "wikitext_ragel.c"
 	if ( (*p) == 10 )
-		goto tr134;
-	goto tr133;
-tr109:
-#line 55 "wikitext_ragel.rl"
+		goto tr132;
+	goto tr131;
+tr108:
+#line 58 "wikitext_ragel.rl"
 	{
         MARK();
     }
@@ -1361,10 +1286,10 @@ st106:
 	if ( ++p == pe )
 		goto _test_eof106;
 case 106:
-#line 1365 "wikitext_ragel.c"
+#line 1290 "wikitext_ragel.c"
 	if ( (*p) == 32 )
 		goto st106;
-	goto tr135;
+	goto tr133;
 st107:
 	if ( ++p == pe )
 		goto _test_eof107;
@@ -1375,8 +1300,8 @@ case 107:
 	}
 	if ( 58 <= (*p) && (*p) <= 59 )
 		goto st107;
-	goto tr137;
-tr113:
+	goto tr135;
+tr111:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st108;
@@ -1384,7 +1309,7 @@ st108:
 	if ( ++p == pe )
 		goto _test_eof108;
 case 108:
-#line 1388 "wikitext_ragel.c"
+#line 1313 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 35: goto st7;
 		case 97: goto st13;
@@ -1395,7 +1320,7 @@ case 108:
 			goto st11;
 	} else if ( (*p) >= 65 )
 		goto st11;
-	goto tr138;
+	goto tr136;
 st7:
 	if ( ++p == pe )
 		goto _test_eof7;
@@ -1589,45 +1514,45 @@ st109:
 case 109:
 	if ( (*p) == 39 )
 		goto st110;
-	goto tr142;
+	goto tr140;
 st110:
 	if ( ++p == pe )
 		goto _test_eof110;
 case 110:
 	if ( (*p) == 39 )
 		goto st111;
-	goto tr142;
+	goto tr140;
 st111:
 	if ( ++p == pe )
 		goto _test_eof111;
 case 111:
 	if ( (*p) == 39 )
 		goto st112;
-	goto tr142;
+	goto tr140;
 st112:
 	if ( ++p == pe )
 		goto _test_eof112;
 case 112:
 	if ( (*p) == 39 )
-		goto tr146;
-	goto tr142;
-tr101:
+		goto tr144;
+	goto tr140;
+tr100:
 #line 1 "NONE"
 	{te = p+1;}
-#line 102 "wikitext_ragel.rl"
+#line 105 "wikitext_ragel.rl"
 	{act = 1;}
 	goto st113;
-tr115:
+tr113:
 #line 1 "NONE"
 	{te = p+1;}
-#line 718 "wikitext_ragel.rl"
-	{act = 32;}
+#line 655 "wikitext_ragel.rl"
+	{act = 28;}
 	goto st113;
 st113:
 	if ( ++p == pe )
 		goto _test_eof113;
 case 113:
-#line 1631 "wikitext_ragel.c"
+#line 1556 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
 		case 95: goto st20;
@@ -1723,14 +1648,58 @@ case 24:
 tr28:
 #line 1 "NONE"
 	{te = p+1;}
-#line 102 "wikitext_ragel.rl"
+#line 105 "wikitext_ragel.rl"
 	{act = 1;}
 	goto st114;
 st114:
 	if ( ++p == pe )
 		goto _test_eof114;
 case 114:
-#line 1734 "wikitext_ragel.c"
+#line 1659 "wikitext_ragel.c"
+	if ( (*p) == 46 )
+		goto st23;
+	if ( (*p) < 65 ) {
+		if ( 48 <= (*p) && (*p) <= 57 )
+			goto st22;
+	} else if ( (*p) > 90 ) {
+		if ( 97 <= (*p) && (*p) <= 122 )
+			goto tr146;
+	} else
+		goto tr146;
+	goto tr145;
+tr146:
+#line 1 "NONE"
+	{te = p+1;}
+#line 105 "wikitext_ragel.rl"
+	{act = 1;}
+	goto st115;
+st115:
+	if ( ++p == pe )
+		goto _test_eof115;
+case 115:
+#line 1681 "wikitext_ragel.c"
+	if ( (*p) == 46 )
+		goto st23;
+	if ( (*p) < 65 ) {
+		if ( 48 <= (*p) && (*p) <= 57 )
+			goto st22;
+	} else if ( (*p) > 90 ) {
+		if ( 97 <= (*p) && (*p) <= 122 )
+			goto tr147;
+	} else
+		goto tr147;
+	goto tr145;
+tr147:
+#line 1 "NONE"
+	{te = p+1;}
+#line 105 "wikitext_ragel.rl"
+	{act = 1;}
+	goto st116;
+st116:
+	if ( ++p == pe )
+		goto _test_eof116;
+case 116:
+#line 1703 "wikitext_ragel.c"
 	if ( (*p) == 46 )
 		goto st23;
 	if ( (*p) < 65 ) {
@@ -1741,62 +1710,18 @@ case 114:
 			goto tr148;
 	} else
 		goto tr148;
-	goto tr147;
+	goto tr145;
 tr148:
 #line 1 "NONE"
 	{te = p+1;}
-#line 102 "wikitext_ragel.rl"
-	{act = 1;}
-	goto st115;
-st115:
-	if ( ++p == pe )
-		goto _test_eof115;
-case 115:
-#line 1756 "wikitext_ragel.c"
-	if ( (*p) == 46 )
-		goto st23;
-	if ( (*p) < 65 ) {
-		if ( 48 <= (*p) && (*p) <= 57 )
-			goto st22;
-	} else if ( (*p) > 90 ) {
-		if ( 97 <= (*p) && (*p) <= 122 )
-			goto tr149;
-	} else
-		goto tr149;
-	goto tr147;
-tr149:
-#line 1 "NONE"
-	{te = p+1;}
-#line 102 "wikitext_ragel.rl"
-	{act = 1;}
-	goto st116;
-st116:
-	if ( ++p == pe )
-		goto _test_eof116;
-case 116:
-#line 1778 "wikitext_ragel.c"
-	if ( (*p) == 46 )
-		goto st23;
-	if ( (*p) < 65 ) {
-		if ( 48 <= (*p) && (*p) <= 57 )
-			goto st22;
-	} else if ( (*p) > 90 ) {
-		if ( 97 <= (*p) && (*p) <= 122 )
-			goto tr150;
-	} else
-		goto tr150;
-	goto tr147;
-tr150:
-#line 1 "NONE"
-	{te = p+1;}
-#line 102 "wikitext_ragel.rl"
+#line 105 "wikitext_ragel.rl"
 	{act = 1;}
 	goto st117;
 st117:
 	if ( ++p == pe )
 		goto _test_eof117;
 case 117:
-#line 1800 "wikitext_ragel.c"
+#line 1725 "wikitext_ragel.c"
 	if ( (*p) == 46 )
 		goto st23;
 	if ( (*p) < 65 ) {
@@ -1807,18 +1732,18 @@ case 117:
 			goto st22;
 	} else
 		goto st22;
-	goto tr147;
-tr116:
+	goto tr145;
+tr114:
 #line 1 "NONE"
 	{te = p+1;}
-#line 739 "wikitext_ragel.rl"
-	{act = 33;}
+#line 676 "wikitext_ragel.rl"
+	{act = 29;}
 	goto st118;
 st118:
 	if ( ++p == pe )
 		goto _test_eof118;
 case 118:
-#line 1822 "wikitext_ragel.c"
+#line 1747 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 32: goto st25;
 		case 44: goto st25;
@@ -1839,15 +1764,15 @@ case 118:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr116;
+				goto tr114;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st26;
-	goto tr151;
+	goto tr149;
 st25:
 	if ( ++p == pe )
 		goto _test_eof25;
@@ -1863,7 +1788,7 @@ st119:
 	if ( ++p == pe )
 		goto _test_eof119;
 case 119:
-#line 1867 "wikitext_ragel.c"
+#line 1792 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 32: goto st25;
 		case 58: goto st25;
@@ -1874,7 +1799,7 @@ case 119:
 			goto tr30;
 	} else if ( (*p) >= 44 )
 		goto st25;
-	goto tr151;
+	goto tr149;
 st26:
 	if ( ++p == pe )
 		goto _test_eof26;
@@ -1898,14 +1823,14 @@ case 26:
 tr31:
 #line 1 "NONE"
 	{te = p+1;}
-#line 739 "wikitext_ragel.rl"
-	{act = 33;}
+#line 676 "wikitext_ragel.rl"
+	{act = 29;}
 	goto st120;
 st120:
 	if ( ++p == pe )
 		goto _test_eof120;
 case 120:
-#line 1909 "wikitext_ragel.c"
+#line 1834 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 32: goto st25;
 		case 44: goto st25;
@@ -1925,18 +1850,18 @@ case 120:
 			goto st20;
 	} else
 		goto tr31;
-	goto tr151;
-tr120:
+	goto tr149;
+tr118:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st121;
 st121:
 	if ( ++p == pe )
 		goto _test_eof121;
 case 121:
-#line 1940 "wikitext_ragel.c"
+#line 1865 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
 		case 95: goto st20;
@@ -1953,46 +1878,46 @@ case 121:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
+	goto tr129;
 st122:
 	if ( ++p == pe )
 		goto _test_eof122;
 case 122:
 	switch( (*p) ) {
-		case 33: goto tr155;
-		case 47: goto tr156;
-		case 66: goto tr157;
-		case 69: goto tr158;
-		case 77: goto tr159;
-		case 78: goto tr160;
-		case 80: goto tr161;
-		case 82: goto tr162;
-		case 83: goto tr163;
-		case 84: goto tr164;
-		case 98: goto tr157;
-		case 101: goto tr158;
-		case 109: goto tr159;
-		case 110: goto tr160;
-		case 112: goto tr165;
-		case 114: goto tr166;
-		case 115: goto tr163;
-		case 116: goto tr164;
+		case 33: goto tr153;
+		case 47: goto tr154;
+		case 66: goto tr155;
+		case 69: goto tr156;
+		case 77: goto tr157;
+		case 78: goto tr158;
+		case 80: goto tr159;
+		case 82: goto tr160;
+		case 83: goto tr161;
+		case 84: goto tr162;
+		case 98: goto tr155;
+		case 101: goto tr156;
+		case 109: goto tr157;
+		case 110: goto tr158;
+		case 112: goto tr163;
+		case 114: goto tr164;
+		case 115: goto tr161;
+		case 116: goto tr162;
 	}
 	if ( (*p) > 90 ) {
 		if ( 97 <= (*p) && (*p) <= 122 )
-			goto tr155;
+			goto tr153;
 	} else if ( (*p) >= 65 )
-		goto tr155;
-	goto tr154;
-tr156:
+		goto tr153;
+	goto tr152;
+tr154:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st123;
@@ -2000,7 +1925,7 @@ st123:
 	if ( ++p == pe )
 		goto _test_eof123;
 case 123:
-#line 2004 "wikitext_ragel.c"
+#line 1929 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 66: goto st27;
 		case 69: goto st37;
@@ -2019,7 +1944,7 @@ case 123:
 		case 115: goto st51;
 		case 116: goto st56;
 	}
-	goto tr167;
+	goto tr165;
 st27:
 	if ( ++p == pe )
 		goto _test_eof27;
@@ -2333,7 +2258,7 @@ case 61:
 		case 110: goto st48;
 	}
 	goto tr32;
-tr157:
+tr155:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st124;
@@ -2341,13 +2266,13 @@ st124:
 	if ( ++p == pe )
 		goto _test_eof124;
 case 124:
-#line 2345 "wikitext_ragel.c"
+#line 2270 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 76: goto st28;
 		case 108: goto st28;
 	}
-	goto tr167;
-tr158:
+	goto tr165;
+tr156:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st125;
@@ -2355,13 +2280,13 @@ st125:
 	if ( ++p == pe )
 		goto _test_eof125;
 case 125:
-#line 2359 "wikitext_ragel.c"
+#line 2284 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 77: goto st36;
 		case 109: goto st36;
 	}
-	goto tr167;
-tr159:
+	goto tr165;
+tr157:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st126;
@@ -2369,12 +2294,12 @@ st126:
 	if ( ++p == pe )
 		goto _test_eof126;
 case 126:
-#line 2373 "wikitext_ragel.c"
+#line 2298 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 65: goto st62;
 		case 97: goto st62;
 	}
-	goto tr167;
+	goto tr165;
 st62:
 	if ( ++p == pe )
 		goto _test_eof62;
@@ -2400,7 +2325,7 @@ case 64:
 	if ( (*p) == 62 )
 		goto tr64;
 	goto tr32;
-tr160:
+tr158:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st127;
@@ -2408,13 +2333,13 @@ st127:
 	if ( ++p == pe )
 		goto _test_eof127;
 case 127:
-#line 2412 "wikitext_ragel.c"
+#line 2337 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 79: goto st43;
 		case 111: goto st43;
 	}
-	goto tr167;
-tr161:
+	goto tr165;
+tr159:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st128;
@@ -2422,12 +2347,12 @@ st128:
 	if ( ++p == pe )
 		goto _test_eof128;
 case 128:
-#line 2426 "wikitext_ragel.c"
+#line 2351 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 82: goto st65;
 		case 114: goto st65;
 	}
-	goto tr167;
+	goto tr165;
 st65:
 	if ( ++p == pe )
 		goto _test_eof65;
@@ -2437,7 +2362,7 @@ case 65:
 		case 101: goto st64;
 	}
 	goto tr32;
-tr162:
+tr160:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st129;
@@ -2445,12 +2370,12 @@ st129:
 	if ( ++p == pe )
 		goto _test_eof129;
 case 129:
-#line 2449 "wikitext_ragel.c"
+#line 2374 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 69: goto st66;
 		case 101: goto st66;
 	}
-	goto tr167;
+	goto tr165;
 st66:
 	if ( ++p == pe )
 		goto _test_eof66;
@@ -2460,7 +2385,7 @@ case 66:
 		case 102: goto st64;
 	}
 	goto tr32;
-tr163:
+tr161:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st130;
@@ -2468,13 +2393,13 @@ st130:
 	if ( ++p == pe )
 		goto _test_eof130;
 case 130:
-#line 2472 "wikitext_ragel.c"
+#line 2397 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 84: goto st52;
 		case 116: goto st52;
 	}
-	goto tr167;
-tr164:
+	goto tr165;
+tr162:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st131;
@@ -2482,14 +2407,14 @@ st131:
 	if ( ++p == pe )
 		goto _test_eof131;
 case 131:
-#line 2486 "wikitext_ragel.c"
+#line 2411 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 73: goto st67;
 		case 84: goto st36;
 		case 105: goto st67;
 		case 116: goto st36;
 	}
-	goto tr167;
+	goto tr165;
 st67:
 	if ( ++p == pe )
 		goto _test_eof67;
@@ -2535,7 +2460,7 @@ case 71:
 		case 110: goto st65;
 	}
 	goto tr32;
-tr165:
+tr163:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st132;
@@ -2543,12 +2468,12 @@ st132:
 	if ( ++p == pe )
 		goto _test_eof132;
 case 132:
-#line 2547 "wikitext_ragel.c"
+#line 2472 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 82: goto st65;
 		case 114: goto st72;
 	}
-	goto tr167;
+	goto tr165;
 st72:
 	if ( ++p == pe )
 		goto _test_eof72;
@@ -2631,7 +2556,7 @@ case 81:
 	} else if ( (*p) >= 65 )
 		goto st81;
 	goto tr32;
-tr166:
+tr164:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st133;
@@ -2639,12 +2564,12 @@ st133:
 	if ( ++p == pe )
 		goto _test_eof133;
 case 133:
-#line 2643 "wikitext_ragel.c"
+#line 2568 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 69: goto st66;
 		case 101: goto st82;
 	}
-	goto tr167;
+	goto tr165;
 st82:
 	if ( ++p == pe )
 		goto _test_eof82;
@@ -2712,8 +2637,8 @@ case 90:
 	if ( (*p) == 62 )
 		goto tr64;
 	goto st90;
-tr118:
-#line 55 "wikitext_ragel.rl"
+tr116:
+#line 58 "wikitext_ragel.rl"
 	{
         MARK();
     }
@@ -2722,21 +2647,21 @@ st134:
 	if ( ++p == pe )
 		goto _test_eof134;
 case 134:
-#line 2726 "wikitext_ragel.c"
+#line 2651 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 32: goto st135;
-		case 61: goto tr118;
+		case 61: goto tr116;
 	}
-	goto tr181;
+	goto tr179;
 st135:
 	if ( ++p == pe )
 		goto _test_eof135;
 case 135:
 	if ( (*p) == 32 )
 		goto st135;
-	goto tr181;
-tr119:
-#line 55 "wikitext_ragel.rl"
+	goto tr179;
+tr117:
+#line 58 "wikitext_ragel.rl"
 	{
         MARK();
     }
@@ -2745,26 +2670,26 @@ st136:
 	if ( ++p == pe )
 		goto _test_eof136;
 case 136:
-#line 2749 "wikitext_ragel.c"
+#line 2674 "wikitext_ragel.c"
 	if ( (*p) == 32 )
-		goto tr184;
-	goto tr183;
-tr121:
+		goto tr182;
+	goto tr181;
+tr119:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st137;
 st137:
 	if ( ++p == pe )
 		goto _test_eof137;
 case 137:
-#line 2763 "wikitext_ragel.c"
+#line 2688 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 84: goto tr185;
+		case 84: goto tr183;
 		case 95: goto st20;
-		case 116: goto tr185;
+		case 116: goto tr183;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -2778,31 +2703,31 @@ case 137:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr185:
+	goto tr129;
+tr183:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st138;
 st138:
 	if ( ++p == pe )
 		goto _test_eof138;
 case 138:
-#line 2801 "wikitext_ragel.c"
+#line 2726 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 80: goto tr186;
+		case 80: goto tr184;
 		case 95: goto st20;
-		case 112: goto tr186;
+		case 112: goto tr184;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -2816,26 +2741,26 @@ case 138:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr186:
+	goto tr129;
+tr184:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st139;
 st139:
 	if ( ++p == pe )
 		goto _test_eof139;
 case 139:
-#line 2839 "wikitext_ragel.c"
+#line 2764 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 58: goto st91;
 		case 64: goto st21;
@@ -2853,15 +2778,15 @@ case 139:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
+	goto tr129;
 st91:
 	if ( ++p == pe )
 		goto _test_eof91;
@@ -2904,14 +2829,14 @@ case 93:
 tr90:
 #line 1 "NONE"
 	{te = p+1;}
-#line 102 "wikitext_ragel.rl"
+#line 105 "wikitext_ragel.rl"
 	{act = 1;}
 	goto st140;
 st140:
 	if ( ++p == pe )
 		goto _test_eof140;
 case 140:
-#line 2915 "wikitext_ragel.c"
+#line 2840 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 92: goto st93;
 		case 126: goto st93;
@@ -2924,23 +2849,23 @@ case 140:
 			goto st93;
 	} else
 		goto st93;
-	goto tr147;
-tr122:
+	goto tr145;
+tr120:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st141;
 st141:
 	if ( ++p == pe )
 		goto _test_eof141;
 case 141:
-#line 2939 "wikitext_ragel.c"
+#line 2864 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 84: goto tr188;
+		case 84: goto tr186;
 		case 95: goto st20;
-		case 116: goto tr188;
+		case 116: goto tr186;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -2954,31 +2879,31 @@ case 141:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr188:
+	goto tr129;
+tr186:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st142;
 st142:
 	if ( ++p == pe )
 		goto _test_eof142;
 case 142:
-#line 2977 "wikitext_ragel.c"
+#line 2902 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 84: goto tr189;
+		case 84: goto tr187;
 		case 95: goto st20;
-		case 116: goto tr189;
+		case 116: goto tr187;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -2992,31 +2917,31 @@ case 142:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr189:
+	goto tr129;
+tr187:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st143;
 st143:
 	if ( ++p == pe )
 		goto _test_eof143;
 case 143:
-#line 3015 "wikitext_ragel.c"
+#line 2940 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 80: goto tr190;
+		case 80: goto tr188;
 		case 95: goto st20;
-		case 112: goto tr190;
+		case 112: goto tr188;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3030,32 +2955,32 @@ case 143:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr190:
+	goto tr129;
+tr188:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st144;
 st144:
 	if ( ++p == pe )
 		goto _test_eof144;
 case 144:
-#line 3053 "wikitext_ragel.c"
+#line 2978 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 58: goto st91;
 		case 64: goto st21;
-		case 83: goto tr186;
+		case 83: goto tr184;
 		case 95: goto st20;
-		case 115: goto tr186;
+		case 115: goto tr184;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3069,31 +2994,31 @@ case 144:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr123:
+	goto tr129;
+tr121:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st145;
 st145:
 	if ( ++p == pe )
 		goto _test_eof145;
 case 145:
-#line 3092 "wikitext_ragel.c"
+#line 3017 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 65: goto tr191;
+		case 65: goto tr189;
 		case 95: goto st20;
-		case 97: goto tr191;
+		case 97: goto tr189;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3107,31 +3032,31 @@ case 145:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 66 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 98 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr191:
+	goto tr129;
+tr189:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st146;
 st146:
 	if ( ++p == pe )
 		goto _test_eof146;
 case 146:
-#line 3130 "wikitext_ragel.c"
+#line 3055 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 73: goto tr192;
+		case 73: goto tr190;
 		case 95: goto st20;
-		case 105: goto tr192;
+		case 105: goto tr190;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3145,31 +3070,31 @@ case 146:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr192:
+	goto tr129;
+tr190:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st147;
 st147:
 	if ( ++p == pe )
 		goto _test_eof147;
 case 147:
-#line 3168 "wikitext_ragel.c"
+#line 3093 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 76: goto tr193;
+		case 76: goto tr191;
 		case 95: goto st20;
-		case 108: goto tr193;
+		case 108: goto tr191;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3183,31 +3108,31 @@ case 147:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr193:
+	goto tr129;
+tr191:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st148;
 st148:
 	if ( ++p == pe )
 		goto _test_eof148;
 case 148:
-#line 3206 "wikitext_ragel.c"
+#line 3131 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 84: goto tr194;
+		case 84: goto tr192;
 		case 95: goto st20;
-		case 116: goto tr194;
+		case 116: goto tr192;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3221,31 +3146,31 @@ case 148:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr194:
+	goto tr129;
+tr192:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st149;
 st149:
 	if ( ++p == pe )
 		goto _test_eof149;
 case 149:
-#line 3244 "wikitext_ragel.c"
+#line 3169 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 79: goto tr195;
+		case 79: goto tr193;
 		case 95: goto st20;
-		case 111: goto tr195;
+		case 111: goto tr193;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3259,26 +3184,26 @@ case 149:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr195:
+	goto tr129;
+tr193:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st150;
 st150:
 	if ( ++p == pe )
 		goto _test_eof150;
 case 150:
-#line 3282 "wikitext_ragel.c"
+#line 3207 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 58: goto st94;
 		case 64: goto st21;
@@ -3296,15 +3221,15 @@ case 150:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
+	goto tr129;
 st94:
 	if ( ++p == pe )
 		goto _test_eof94;
@@ -3323,22 +3248,22 @@ case 94:
 	} else
 		goto st20;
 	goto tr87;
-tr124:
+tr122:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st151;
 st151:
 	if ( ++p == pe )
 		goto _test_eof151;
 case 151:
-#line 3337 "wikitext_ragel.c"
+#line 3262 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 86: goto tr197;
+		case 86: goto tr195;
 		case 95: goto st20;
-		case 118: goto tr197;
+		case 118: goto tr195;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3352,31 +3277,31 @@ case 151:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
-tr197:
+	goto tr129;
+tr195:
 #line 1 "NONE"
 	{te = p+1;}
-#line 775 "wikitext_ragel.rl"
-	{act = 34;}
+#line 701 "wikitext_ragel.rl"
+	{act = 30;}
 	goto st152;
 st152:
 	if ( ++p == pe )
 		goto _test_eof152;
 case 152:
-#line 3375 "wikitext_ragel.c"
+#line 3300 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 78: goto tr186;
+		case 78: goto tr184;
 		case 95: goto st20;
-		case 110: goto tr186;
+		case 110: goto tr184;
 	}
 	if ( (*p) < 45 ) {
 		if ( (*p) < -32 ) {
@@ -3390,23 +3315,23 @@ case 152:
 	} else if ( (*p) > 46 ) {
 		if ( (*p) < 65 ) {
 			if ( 48 <= (*p) && (*p) <= 57 )
-				goto tr120;
+				goto tr118;
 		} else if ( (*p) > 90 ) {
 			if ( 97 <= (*p) && (*p) <= 122 )
-				goto tr120;
+				goto tr118;
 		} else
-			goto tr120;
+			goto tr118;
 	} else
 		goto st20;
-	goto tr131;
+	goto tr129;
 st153:
 	if ( ++p == pe )
 		goto _test_eof153;
 case 153:
 	if ( (*p) == 91 )
-		goto tr199;
-	goto tr198;
-tr199:
+		goto tr197;
+	goto tr196;
+tr197:
 #line 1 "NONE"
 	{te = p+1;}
 	goto st154;
@@ -3414,7 +3339,7 @@ st154:
 	if ( ++p == pe )
 		goto _test_eof154;
 case 154:
-#line 3418 "wikitext_ragel.c"
+#line 3343 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 45: goto st95;
 		case 58: goto tr93;
@@ -3424,7 +3349,7 @@ case 154:
 			goto st95;
 	} else if ( (*p) >= 65 )
 		goto st95;
-	goto tr200;
+	goto tr198;
 st95:
 	if ( ++p == pe )
 		goto _test_eof95;
@@ -3444,19 +3369,19 @@ st155:
 		goto _test_eof155;
 case 155:
 	if ( (*p) == 93 )
-		goto tr202;
-	goto tr201;
-tr127:
+		goto tr200;
+	goto tr199;
+tr125:
 #line 1 "NONE"
 	{te = p+1;}
-#line 718 "wikitext_ragel.rl"
-	{act = 32;}
+#line 655 "wikitext_ragel.rl"
+	{act = 28;}
 	goto st156;
 st156:
 	if ( ++p == pe )
 		goto _test_eof156;
 case 156:
-#line 3460 "wikitext_ragel.c"
+#line 3385 "wikitext_ragel.c"
 	switch( (*p) ) {
 		case 64: goto st21;
 		case 95: goto st96;
@@ -3472,7 +3397,7 @@ case 156:
 			goto st20;
 	} else
 		goto st20;
-	goto tr203;
+	goto tr136;
 st96:
 	if ( ++p == pe )
 		goto _test_eof96;
@@ -3493,7 +3418,7 @@ case 96:
 			goto st20;
 	} else
 		goto st20;
-	goto tr94;
+	goto tr7;
 st97:
 	if ( ++p == pe )
 		goto _test_eof97;
@@ -3514,7 +3439,7 @@ case 97:
 			goto st20;
 	} else
 		goto st20;
-	goto tr94;
+	goto tr7;
 st98:
 	if ( ++p == pe )
 		goto _test_eof98;
@@ -3535,7 +3460,7 @@ case 98:
 			goto st20;
 	} else
 		goto st20;
-	goto tr94;
+	goto tr7;
 st99:
 	if ( ++p == pe )
 		goto _test_eof99;
@@ -3556,7 +3481,7 @@ case 99:
 			goto st20;
 	} else
 		goto st20;
-	goto tr94;
+	goto tr7;
 st100:
 	if ( ++p == pe )
 		goto _test_eof100;
@@ -3577,7 +3502,7 @@ case 100:
 			goto st20;
 	} else
 		goto st20;
-	goto tr94;
+	goto tr7;
 st101:
 	if ( ++p == pe )
 		goto _test_eof101;
@@ -3597,14 +3522,14 @@ case 101:
 			goto st20;
 	} else
 		goto st20;
-	goto tr94;
+	goto tr7;
 st102:
 	if ( ++p == pe )
 		goto _test_eof102;
 case 102:
 	switch( (*p) ) {
 		case 64: goto st21;
-		case 95: goto tr101;
+		case 95: goto tr100;
 	}
 	if ( (*p) < 48 ) {
 		if ( 45 <= (*p) && (*p) <= 46 )
@@ -3617,42 +3542,42 @@ case 102:
 			goto st20;
 	} else
 		goto st20;
-	goto tr94;
+	goto tr7;
 st157:
 	if ( ++p == pe )
 		goto _test_eof157;
 case 157:
 	switch( (*p) ) {
-		case 123: goto tr206;
-		case 124: goto tr207;
+		case 123: goto tr202;
+		case 124: goto tr203;
 	}
-	goto tr205;
+	goto tr136;
 st158:
 	if ( ++p == pe )
 		goto _test_eof158;
 case 158:
 	if ( (*p) == 125 )
-		goto tr209;
-	goto tr208;
-tr130:
+		goto tr205;
+	goto tr204;
+tr128:
 #line 1 "NONE"
 	{te = p+1;}
-#line 669 "wikitext_ragel.rl"
-	{act = 30;}
+#line 655 "wikitext_ragel.rl"
+	{act = 28;}
 	goto st159;
-tr209:
+tr205:
 #line 1 "NONE"
 	{te = p+1;}
-#line 420 "wikitext_ragel.rl"
+#line 423 "wikitext_ragel.rl"
 	{act = 14;}
 	goto st159;
 st159:
 	if ( ++p == pe )
 		goto _test_eof159;
 case 159:
-#line 3654 "wikitext_ragel.c"
+#line 3579 "wikitext_ragel.c"
 	if ( (*p) == 125 )
-		goto tr210;
+		goto tr206;
 	goto tr0;
 	}
 	_test_eof103: cs = 103; goto _test_eof; 
@@ -3820,16 +3745,16 @@ case 159:
 	{
 	switch ( cs ) {
 	case 1: goto tr0;
-	case 104: goto tr131;
+	case 104: goto tr129;
 	case 2: goto tr0;
 	case 3: goto tr0;
 	case 4: goto tr0;
 	case 5: goto tr0;
 	case 6: goto tr0;
-	case 105: goto tr133;
-	case 106: goto tr135;
-	case 107: goto tr137;
-	case 108: goto tr138;
+	case 105: goto tr131;
+	case 106: goto tr133;
+	case 107: goto tr135;
+	case 108: goto tr136;
 	case 7: goto tr7;
 	case 8: goto tr7;
 	case 9: goto tr7;
@@ -3843,28 +3768,28 @@ case 159:
 	case 17: goto tr7;
 	case 18: goto tr7;
 	case 19: goto tr7;
-	case 109: goto tr142;
-	case 110: goto tr142;
-	case 111: goto tr142;
-	case 112: goto tr142;
+	case 109: goto tr140;
+	case 110: goto tr140;
+	case 111: goto tr140;
+	case 112: goto tr140;
 	case 113: goto tr0;
 	case 20: goto tr0;
 	case 21: goto tr0;
 	case 22: goto tr0;
 	case 23: goto tr0;
 	case 24: goto tr0;
-	case 114: goto tr147;
-	case 115: goto tr147;
-	case 116: goto tr147;
-	case 117: goto tr147;
-	case 118: goto tr151;
+	case 114: goto tr145;
+	case 115: goto tr145;
+	case 116: goto tr145;
+	case 117: goto tr145;
+	case 118: goto tr149;
 	case 25: goto tr29;
-	case 119: goto tr151;
+	case 119: goto tr149;
 	case 26: goto tr29;
-	case 120: goto tr151;
-	case 121: goto tr131;
-	case 122: goto tr154;
-	case 123: goto tr167;
+	case 120: goto tr149;
+	case 121: goto tr129;
+	case 122: goto tr152;
+	case 123: goto tr165;
 	case 27: goto tr32;
 	case 28: goto tr32;
 	case 29: goto tr32;
@@ -3900,25 +3825,25 @@ case 159:
 	case 59: goto tr32;
 	case 60: goto tr32;
 	case 61: goto tr32;
-	case 124: goto tr167;
-	case 125: goto tr167;
-	case 126: goto tr167;
+	case 124: goto tr165;
+	case 125: goto tr165;
+	case 126: goto tr165;
 	case 62: goto tr32;
 	case 63: goto tr32;
 	case 64: goto tr32;
-	case 127: goto tr167;
-	case 128: goto tr167;
+	case 127: goto tr165;
+	case 128: goto tr165;
 	case 65: goto tr32;
-	case 129: goto tr167;
+	case 129: goto tr165;
 	case 66: goto tr32;
-	case 130: goto tr167;
-	case 131: goto tr167;
+	case 130: goto tr165;
+	case 131: goto tr165;
 	case 67: goto tr32;
 	case 68: goto tr32;
 	case 69: goto tr32;
 	case 70: goto tr32;
 	case 71: goto tr32;
-	case 132: goto tr167;
+	case 132: goto tr165;
 	case 72: goto tr32;
 	case 73: goto tr32;
 	case 74: goto tr32;
@@ -3929,7 +3854,7 @@ case 159:
 	case 79: goto tr32;
 	case 80: goto tr32;
 	case 81: goto tr32;
-	case 133: goto tr167;
+	case 133: goto tr165;
 	case 82: goto tr32;
 	case 83: goto tr32;
 	case 84: goto tr32;
@@ -3939,43 +3864,43 @@ case 159:
 	case 88: goto tr32;
 	case 89: goto tr32;
 	case 90: goto tr32;
-	case 134: goto tr181;
-	case 135: goto tr181;
-	case 136: goto tr183;
-	case 137: goto tr131;
-	case 138: goto tr131;
-	case 139: goto tr131;
+	case 134: goto tr179;
+	case 135: goto tr179;
+	case 136: goto tr181;
+	case 137: goto tr129;
+	case 138: goto tr129;
+	case 139: goto tr129;
 	case 91: goto tr87;
 	case 92: goto tr87;
 	case 93: goto tr0;
-	case 140: goto tr147;
-	case 141: goto tr131;
-	case 142: goto tr131;
-	case 143: goto tr131;
-	case 144: goto tr131;
-	case 145: goto tr131;
-	case 146: goto tr131;
-	case 147: goto tr131;
-	case 148: goto tr131;
-	case 149: goto tr131;
-	case 150: goto tr131;
+	case 140: goto tr145;
+	case 141: goto tr129;
+	case 142: goto tr129;
+	case 143: goto tr129;
+	case 144: goto tr129;
+	case 145: goto tr129;
+	case 146: goto tr129;
+	case 147: goto tr129;
+	case 148: goto tr129;
+	case 149: goto tr129;
+	case 150: goto tr129;
 	case 94: goto tr87;
-	case 151: goto tr131;
-	case 152: goto tr131;
-	case 153: goto tr198;
-	case 154: goto tr200;
+	case 151: goto tr129;
+	case 152: goto tr129;
+	case 153: goto tr196;
+	case 154: goto tr198;
 	case 95: goto tr91;
-	case 155: goto tr201;
-	case 156: goto tr203;
-	case 96: goto tr94;
-	case 97: goto tr94;
-	case 98: goto tr94;
-	case 99: goto tr94;
-	case 100: goto tr94;
-	case 101: goto tr94;
-	case 102: goto tr94;
-	case 157: goto tr205;
-	case 158: goto tr208;
+	case 155: goto tr199;
+	case 156: goto tr136;
+	case 96: goto tr7;
+	case 97: goto tr7;
+	case 98: goto tr7;
+	case 99: goto tr7;
+	case 100: goto tr7;
+	case 101: goto tr7;
+	case 102: goto tr7;
+	case 157: goto tr136;
+	case 158: goto tr204;
 	case 159: goto tr0;
 	}
 	}
@@ -3983,7 +3908,7 @@ case 159:
 	_out: {}
 	}
 
-#line 852 "wikitext_ragel.rl"
+#line 774 "wikitext_ragel.rl"
     if (cs == wikitext_error)
         rb_raise(eWikitextParserError, "failed before finding a token");
     else if (out->type == NO_TOKEN){

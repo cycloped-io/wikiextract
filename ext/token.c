@@ -105,6 +105,7 @@ VALUE Wikitext_parser_token_types(VALUE self)
     SET_TOKEN_TYPE(SL);
     SET_TOKEN_TYPE(CL);
     SET_TOKEN_TYPE(NUM);
+    SET_TOKEN_TYPE(UNCLOSED);
 
 #undef SET_TOKEN_TYPE
 

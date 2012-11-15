@@ -31,7 +31,7 @@ module Wikitext
     @@errors = Hash.new(0)
 
     def initialize
-      @out = CSV.open("test.csv","w")
+      @out = File.open("test.csv","w")
       @links = CSV.open("links.csv","w")
     end
 
@@ -69,10 +69,10 @@ module Wikitext
     end
 
     def parse(input,id)
-      @id = id
+      @id = id.to_i
       @state = :default
       @link_stack = []
-      self.tokenize(input).each.with_index do |token,index|
+      self.tokenize(input,@out,@id).each.with_index do |token,index|
         unless true || token.token_type == :space
           str = "#{token.token_type.to_s} #{token.string_value}"
           str = str.hl(:green) if token.token_type == :crlf

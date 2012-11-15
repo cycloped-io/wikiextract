@@ -31,6 +31,7 @@
 #include "wikitext.h"
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
 
 #define EMIT(t)     do { out->type = t; out->stop = p + 1; out->column_stop += (out->stop - out->start); } while (0)
 #define MARK()      do { mark = p; } while (0)
@@ -46,6 +47,8 @@
 #define ERROR(msg)  do { printf("[31;1m"); printf(msg); printf("[0m: "); strncpy(error_msg,out->start,p-out->start+1); error_msg[p-out->start+1] = 0; printf("%s\n",error_msg);} while (0)
 #define GET_STATE() ( state_stack[(*state_stack_size)-1] )
 #define DEBUG(msg)  do { printf(msg); printf("\n"); } while (0)
+#define PRINT(type) do { EMIT(SKIP); fprintf(file_p,"%i,%s,%i,%i,%i,%i,",doc_id,type,(int)out->line_start, (int)out->line_stop,(int)out->column_start,(int)out->column_stop); fwrite(out->start,1,p+1-out->start,file_p); fprintf(file_p,"\n"); } while (0)
+#define PRINT_CRLF() do { EMIT(SKIP); fprintf(file_p,"%i,crlf,%i,%i,%i,%i,\\n",doc_id,(int)out->line_start, (int)out->line_stop,(int)out->column_start,(int)out->column_stop); fprintf(file_p,"\n"); } while (0)
 
 
 %%{
@@ -158,7 +161,7 @@
               fbreak;
             } else {
               if(GET_STATE() == DEFAULT) {
-                EMIT(PRINTABLE);
+                PRINT("printable");
                 fbreak;
               }
             }
@@ -176,7 +179,7 @@
               state = GET_STATE();
               switch(state){
                 case DEFAULT :
-                  EMIT(PRINTABLE);
+                  PRINT("printable");
                   fbreak;
                 break;
                 case NOWIKI :
@@ -214,7 +217,7 @@
                   fbreak;
                 break;
                 case DEFAULT :
-                  EMIT(SPACE);
+                  PRINT("space");
                   fbreak;
                 break;
                 default :
@@ -231,7 +234,7 @@
                 EMIT(SKIP);
             else
               if(GET_STATE() == DEFAULT)
-                EMIT(PRINTABLE);             
+                PRINT("printable");
               else
                 EMIT(SKIP);
             fbreak;
@@ -244,7 +247,7 @@
                 REWIND();
                 if (DISTANCE() <= 6) {
                   if (GET_STATE() == DEFAULT){
-                    EMIT(CRLF);
+                    PRINT_CRLF();
                     fbreak;
                   }
                 } else {
@@ -258,7 +261,7 @@
                 REWIND();
                 if (DISTANCE() <= 6) {
                   if (GET_STATE() == DEFAULT){
-                    EMIT(CRLF);
+                    PRINT_CRLF();
                     fbreak;
                   } else {
                     EMIT(SKIP);
@@ -267,7 +270,7 @@
                 } else {
                     p -= 6; // will scan the H6 on the next scan
                     if (GET_STATE() == DEFAULT){
-                      EMIT(PRINTABLE);
+                      PRINT("printable");
                       fbreak;
                     }
                 }
@@ -277,7 +280,7 @@
                 // note that a H*_END token will never match before a BLOCKQUOTE_END
                 REWIND();
                 if(GET_STATE() == DEFAULT)
-                  EMIT(PRINTABLE);
+                  PRINT("printable");
                 else
                   EMIT(SKIP);
                 fbreak;
@@ -542,24 +545,6 @@
             fbreak;
         };
 
-        '"'
-        {
-          if(GET_STATE() == DEFAULT)
-            EMIT(PRINTABLE);
-          else
-            EMIT(SKIP);
-          fbreak;
-        };
-
-        '&'
-        {
-          if(GET_STATE() == DEFAULT)
-            EMIT(PRINTABLE);
-          else
-            EMIT(SKIP);
-          fbreak;
-        };
-
         ( '<' alpha ) |  '</' | '<!'
         {
             state = GET_STATE();
@@ -591,7 +576,7 @@
                 fbreak;
               break;
               case DEFAULT :
-                EMIT(ALNUM);
+                PRINT("alnum");
                 fbreak;
               break;
               default :
@@ -606,7 +591,7 @@
             state = GET_STATE();
             switch(state){
               case DEFAULT :
-                EMIT(PRINTABLE);
+                PRINT("printable");
                 fbreak;
               break;
               case NOWIKI :
@@ -642,50 +627,7 @@
               break;
             }
         };
-
-
-        '{'
-        {
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(PRINTABLE);
-                fbreak;
-              break;
-              case DEFAULT :
-                EMIT(PRINTABLE);
-                fbreak;
-              break;
-              default :
-                EMIT(SKIP);
-                fbreak;
-              break;
-            }
-        };
-
-        '}'
-        {
-            state = GET_STATE();
-            switch(state){
-              case INNER_LINK :
-              case LINK :
-                TODO(); // Push token
-                EMIT(PRINTABLE);
-                fbreak;
-              break;
-              case DEFAULT :
-                EMIT(PRINTABLE);
-                fbreak;
-              break;
-              default :
-                EMIT(SKIP);
-                fbreak;
-              break;
-            }
-        };
-
+        
         ("\r"? "\n") | "\r"
         {
             state = GET_STATE();
@@ -695,10 +637,10 @@
                 ERROR("Unclosed link");
                 TODO(); // Print tokens
                 POP();
-                EMIT(CRLF);
+                EMIT(UNCLOSED);
               break;
               case DEFAULT :
-                EMIT(CRLF);
+                PRINT_CRLF();
               break;
               default :
                 EMIT(SKIP);
@@ -709,12 +651,7 @@
             fbreak;
         };
 
-        # must tokenize these separately from the other PRINTABLE characters otherwise a string like:
-        #   See http://example.com/.
-        # will get greedily tokenized as PRINTABLE, SPACE, PRINTABLE rather than PRINTABLE, SPACE, URI, SPECIAL_URI_CHARS
-        # this also applies to MAIL tokenization and input strings like:
-        #   Email me (user@example.com) for more info.
-        special_uri_chars
+        '"' | '&' | '{' | '}' | special_uri_chars
         {
             state = GET_STATE();
             switch(state){
@@ -725,7 +662,7 @@
                 fbreak;
               break;
               case DEFAULT :
-                EMIT(PRINTABLE);
+                PRINT("printable");
                 fbreak;
               break;
               default :
@@ -746,7 +683,7 @@
                 fbreak;
               break;
               case DEFAULT :
-                EMIT(NUM);
+                PRINT("num");
                 fbreak;
               break;
               default :
@@ -756,17 +693,6 @@
             }
         };
 
-        # all the printable ASCII characters (0x20 to 0x7e) 
-        # excluding those explicitly covered elsewhere:
-        # we skip space (0x20), exclamation mark (0x21), quote (0x22), hash (0x23), ampersand (0x26), apostrophe (0x27),
-        # left parenthesis (0x28), right parenthesis (0x29), numbers (0x30..0x39), asterisk (0x2a), comma (0x2c), period (0x2e),
-        # colon (0x3a), semi-colon (0x3b), less than (0x3c), equals (0x3d), greater than (0x3e), question mark (0x3f), uppercase
-        # letters (0x41..0x5a), left bracket (0x5b), right bracket (0x5d), backtick (0x60), lowercase letters (0x61..0x7a), left
-        # curly brace (0x7b), vertical bar (0x7c) and right curly brace (0x7d).
-        #     one_byte_sequence   = byte begins with zero;
-        #     two_byte_sequence   = first byte begins with 110 (0xc0..0xdf), next with 10 (0x80..9xbf);
-        #     three_byte_sequence = first byte begins with 1110 (0xe0..0xef), next two with 10 (0x80..9xbf);
-        #     four_byte_sequence  = first byte begins with 11110 (0xf0..0xf7), next three with 10 (0x80..9xbf);
         (alnum | 
           (0xc2..0xdf 0x80..0xbf)                         @two_byte_utf8_sequence     |
           (0xe0..0xef 0x80..0xbf 0x80..0xbf)              @three_byte_utf8_sequence   |
@@ -782,7 +708,7 @@
                 fbreak;
               break;
               case DEFAULT :
-                EMIT(ALNUM);
+                PRINT("alnum");
                 fbreak;
               break;
               default :
@@ -793,7 +719,7 @@
         };
 
         # here is where we handle everything else
-        (0x01..0x1f | 0x7f)                             @non_printable_ascii 
+        (0x01..0x1f | 0x7f)   @non_printable_ascii 
         {
                 EMIT(SKIP);
                 fbreak;
@@ -804,13 +730,9 @@
     write data;
 }%%
 
-// for now we use the scanner as a tokenizer that returns one token at a time, just like ANTLR
-// ultimately we could look at embedding all of the transformation inside the scanner itself (combined scanner/parser)
-// pass in the last token because that's useful for the scanner to know
-// p data pointer (required by Ragel machine); overriden with contents of last_token if supplied
-// pe data end pointer (required by Ragel machine)
 void next_token(token_t *out, token_t *last_token, char *p, char *pe,
-  int * token_stack, int * state_stack, int * token_stack_size, int * state_stack_size)
+  int * token_stack, int * state_stack, int * token_stack_size, int * state_stack_size,
+  FILE * file_p, int doc_id)
 {
     int last_token_type = NO_TOKEN;
     if (last_token)
