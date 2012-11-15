@@ -127,9 +127,14 @@ enum state_types {
     BLIND_LINK, 
     INNER_LINK, 
     LINK, 
-    NOWIKI
+    NOWIKI,
+    POST_LINK,
+    EXT_LINK
 };
 
 VALUE Wikitext_parser_token_types(VALUE self);
 
 VALUE wiki_token(token_t *token);
+
+void wikitext_print_token(token_t * token,FILE * file_p,int doc_id,const char * type);
+void wikitext_print_crlf(token_t * token,FILE * file_p,int doc_id);

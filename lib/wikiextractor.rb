@@ -32,7 +32,7 @@ module Wikitext
 
     def initialize
       @out = File.open("test.csv","w")
-      @links = CSV.open("links.csv","w")
+      @links = File.open("links.csv","w")
     end
 
     def print(contents)
@@ -72,7 +72,7 @@ module Wikitext
       @id = id.to_i
       @state = :default
       @link_stack = []
-      self.tokenize(input,@out,@id).each.with_index do |token,index|
+      self.tokenize(input,@out,@links,@id).each.with_index do |token,index|
         unless true || token.token_type == :space
           str = "#{token.token_type.to_s} #{token.string_value}"
           str = str.hl(:green) if token.token_type == :crlf
@@ -135,7 +135,7 @@ module Wikitext
           print " " + token.token_type.to_s.hl(:blue) + " #{token.string_value}".hl(:green)
         end
       end
-      flush
+      #flush
     end
 
     def push_token_action(token)

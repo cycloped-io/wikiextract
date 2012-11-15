@@ -22,12 +22,28 @@
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include "wikitext_ragel.h"
+#include "wikitext.h"
 #include "parser.h"
 
 VALUE mWikitext              = 0;   // module Wikitext
 VALUE cWikitextParser        = 0;   // class Wikitext::Parser
 VALUE eWikitextParserError   = 0;   // class Wikitext::Parser::Error
 VALUE cWikitextParserToken   = 0;   // class Wikitext::Parser::Token
+
+void wikitext_print_token(token_t * token,FILE * file_p,int doc_id, const char * type){
+  fprintf(file_p,"%i,%s,%i,%i,%i,%i,",doc_id,type,
+      (int)token->line_start, (int)token->line_stop,
+      (int)token->column_start,(int)token->column_stop); 
+  fwrite(token->start,1,token->stop-token->start,file_p); 
+  fprintf(file_p,"\n");
+}
+
+void wikitext_print_crlf(token_t * token,FILE * file_p, int doc_id){
+  fprintf(file_p,"%i,crlf,%i,%i,%i,%i,\\n",doc_id,
+      (int)token->line_start, (int)token->line_stop,
+      (int)token->column_start,(int)token->column_stop); 
+  fprintf(file_p,"\n");
+}
 
 void Init_wikitext()
 {
@@ -36,7 +52,7 @@ void Init_wikitext()
 
     // Wikitext::Parser
     cWikitextParser = rb_define_class_under(mWikitext, "Parser", rb_cObject);
-    rb_define_method(cWikitextParser, "tokenize", Wikitext_parser_tokenize, 3);
+    rb_define_method(cWikitextParser, "tokenize", Wikitext_parser_tokenize, 4);
 
     // Wikitext::Parser::Error
     eWikitextParserError = rb_define_class_under(cWikitextParser, "Error", rb_eException);

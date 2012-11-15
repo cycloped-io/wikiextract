@@ -39,16 +39,16 @@
 #define AT_END()    (p + 1 == pe)
 #define DISTANCE()  (p + 1 - ts)
 #define NEXT_CHAR() (*(p + 1))
+#define ERROR(msg)  do { printf("[%i:%i:%i:%i][31;1m",doc_id,(int)out->line_start,(int)out->column_start,GET_STATE()); printf(msg); printf("[0m: "); strncpy(error_msg,out->start,p-out->start+1); error_msg[p-out->start+1] = 0; printf("%s\n",error_msg);} while (0)
 #define PRINT_STACK() do {printf("%i %i %i %i\n",token_stack[(*token_stack_size)-1], state_stack[(*state_stack_size)-1], *token_stack_size, *state_stack_size); } while(0)
-#define PUSH(type,state) do { token_stack[(*token_stack_size)++] = type; state_stack[(*state_stack_size)++] = state; } while (0)
-#define POP()       do { (*token_stack_size)--; (*state_stack_size)--; } while (0)
+#define PUSH(type,state) do { if(*token_stack_size == 100){ERROR("Token stack overflow");}else{ token_stack[(*token_stack_size)++] = type;}  if(*state_stack_size == 100){ERROR("State stack overflow");}else{state_stack[(*state_stack_size)++] = state;} } while (0)
+#define POP()       do { if(*token_stack_size == 0){ERROR("Token stack underflow");}else{(*token_stack_size)--;} if(*state_stack_size == 0){ERROR("State stack underflow");}else{(*state_stack_size)--;} } while (0)
 #define LAST_TYPE() ( token_stack[(*token_stack_size)-1] )
 #define TODO()      do { } while (0)
-#define ERROR(msg)  do { printf("[31;1m"); printf(msg); printf("[0m: "); strncpy(error_msg,out->start,p-out->start+1); error_msg[p-out->start+1] = 0; printf("%s\n",error_msg);} while (0)
 #define GET_STATE() ( state_stack[(*state_stack_size)-1] )
 #define DEBUG(msg)  do { printf(msg); printf("\n"); } while (0)
-#define PRINT(type) do { EMIT(SKIP); fprintf(file_p,"%i,%s,%i,%i,%i,%i,",doc_id,type,(int)out->line_start, (int)out->line_stop,(int)out->column_start,(int)out->column_stop); fwrite(out->start,1,p+1-out->start,file_p); fprintf(file_p,"\n"); } while (0)
-#define PRINT_CRLF() do { EMIT(SKIP); fprintf(file_p,"%i,crlf,%i,%i,%i,%i,\\n",doc_id,(int)out->line_start, (int)out->line_stop,(int)out->column_start,(int)out->column_stop); fprintf(file_p,"\n"); } while (0)
+#define PRINT(type) do { EMIT(SKIP); wikitext_print_token(out,file_p,doc_id,type); } while (0)
+#define PRINT_CRLF() do { EMIT(SKIP); wikitext_print_crlf(out,file_p,doc_id); } while (0)
 
 
 %%{
@@ -108,16 +108,21 @@
         };
 
         ( '<pre>'i ) | ( '<pre lang="' alpha+ '">' ) | ( '<math>'i ) | ( '<timeline>'i ) |
-        ( '<ref>'i ) | ( '<ref name=' [^\>]+ '>'i )
+        ( '<ref>'i ) | ( '<ref ' [^\>]+ '>'i )
         {
             state = GET_STATE(); 
             switch(state){
+              case POST_LINK :
+                POP();
               case BLIND :
               case BLIND_LINK :
               case INNER_LINK :
               case LINK :
               case DEFAULT :
+              case NOWIKI :
                 PUSH(PRE_START,NOWIKI);
+                EMIT(SKIP);
+                fbreak;
               break;
               default :
                 EMIT(SKIP);
@@ -138,12 +143,13 @@
                   fbreak;
                 }
               break;
+              case POST_LINK :
+                POP();
               case BLIND :
               case BLIND_LINK :
               case INNER_LINK :
               case LINK :
               case DEFAULT :
-                PRINT_STACK();
                 ERROR("Closing token without opening token");
               break;
               default :
@@ -160,44 +166,27 @@
               EMIT(SKIP);
               fbreak;
             } else {
-              if(GET_STATE() == DEFAULT) {
-                PRINT("printable");
-                fbreak;
-              }
-            }
-        };
-
-
-        # shorthand for <blockquote> and </blockquote>
-        '>' @mark ' '?
-        {
-            if (out->column_start == 1 || last_token_type == BLOCKQUOTE) {
-              EMIT(SKIP);
-              fbreak;
-            } else {
-              REWIND();
               state = GET_STATE();
-              switch(state){
+              switch(state) {
                 case DEFAULT :
                   PRINT("printable");
                   fbreak;
                 break;
-                case NOWIKI :
-                  opening = LAST_TYPE();
-                  if(opening == TAG_START) {
-                    POP(); 
-                    EMIT(SKIP);
-                    fbreak;
-                  }
+                case INNER_LINK :
+                case LINK :
+                  TODO(); // Push token
+                  EMIT(PRINTABLE);
+                  fbreak;
                 break;
-                default :
-                  ERROR("Closing token without opening token");
-                  EMIT(SKIP);
+                case POST_LINK :
+                  POP();
+                  EMIT(PRINTABLE);
                   fbreak;
                 break;
               }
             }
         };
+
 
         # shorthand for <pre> and </pre>
         ' ' @mark ' '*
@@ -220,6 +209,11 @@
                   PRINT("space");
                   fbreak;
                 break;
+                case POST_LINK :
+                  POP();
+                  EMIT(SPACE);
+                  fbreak;
+                break;
                 default :
                   EMIT(SKIP);
                   fbreak;
@@ -232,12 +226,30 @@
         {
             if (out->column_start == 1 )
                 EMIT(SKIP);
-            else
-              if(GET_STATE() == DEFAULT)
-                PRINT("printable");
-              else
-                EMIT(SKIP);
-            fbreak;
+            else {
+              state = GET_STATE();
+              switch(state){
+                case INNER_LINK :
+                case LINK :
+                  TODO(); // Push token
+                  EMIT(SPACE);
+                  fbreak;
+                break;
+                case DEFAULT :
+                  PRINT("space");
+                  fbreak;
+                break;
+                case POST_LINK :
+                  POP();
+                  EMIT(PRINTABLE);
+                  fbreak;
+                break;
+                default :
+                  EMIT(SKIP);
+                  fbreak;
+                break;
+              }
+            }
         };
 
         '='+ @mark ' '*
@@ -269,9 +281,27 @@
                   }
                 } else {
                     p -= 6; // will scan the H6 on the next scan
-                    if (GET_STATE() == DEFAULT){
-                      PRINT("printable");
-                      fbreak;
+                    state = GET_STATE();
+                    switch(state){
+                      case INNER_LINK :
+                      case LINK :
+                        TODO(); // Push token
+                        EMIT(SPACE);
+                        fbreak;
+                      break;
+                      case DEFAULT :
+                        PRINT("space");
+                        fbreak;
+                      break;
+                      case POST_LINK :
+                        POP();
+                        EMIT(SPACE);
+                        fbreak;
+                      break;
+                      default :
+                        EMIT(SKIP);
+                        fbreak;
+                      break;
                     }
                 }
             }
@@ -279,11 +309,28 @@
             {
                 // note that a H*_END token will never match before a BLOCKQUOTE_END
                 REWIND();
-                if(GET_STATE() == DEFAULT)
-                  PRINT("printable");
-                else
-                  EMIT(SKIP);
-                fbreak;
+                state = GET_STATE();
+                switch(state){
+                  case INNER_LINK :
+                  case LINK :
+                    TODO(); // Push token
+                    EMIT(SPACE);
+                    fbreak;
+                  break;
+                  case DEFAULT :
+                    PRINT("space");
+                    fbreak;
+                  break;
+                  case POST_LINK :
+                    POP();
+                    EMIT(SPACE);
+                    fbreak;
+                  break;
+                  default :
+                    EMIT(SKIP);
+                    fbreak;
+                  break;
+                }
             }
         };
 
@@ -292,6 +339,8 @@
         {
             state = GET_STATE();
             switch(state){
+              case POST_LINK :
+                POP();
               case BLIND :
               case BLIND_LINK :
               case INNER_LINK :
@@ -318,6 +367,8 @@
               case LINK :
                 PUSH(LINK_START,INNER_LINK);
               break;
+              case POST_LINK :
+                POP();
               case DEFAULT :
                 PUSH(LINK_START,LINK);
                 EMIT(LINK_START);
@@ -352,10 +403,12 @@
                 POP();
                 TODO(); //Close link tag                 
                 EMIT(LINK_END);
+                PUSH(SKIP,POST_LINK);
                 fbreak;
               break;
+              case POST_LINK :
+                POP();
               case DEFAULT :
-                PRINT_STACK();
                 ERROR("Closing tag without opening");
               break;
               default :
@@ -369,6 +422,8 @@
         {
             state = GET_STATE();
             switch(state){
+              case POST_LINK :
+                POP();
               case BLIND :
               case BLIND_LINK :
               case INNER_LINK :
@@ -406,6 +461,8 @@
                 EMIT(SKIP);
                 fbreak;
               break;
+              case POST_LINK :
+                POP();
               case DEFAULT :
                 ERROR("Closing without opening");
                 EMIT(SKIP);
@@ -438,6 +495,8 @@
                 EMIT(SKIP);
                 fbreak;
               break;
+              case POST_LINK :
+                POP();
               case DEFAULT :
                 ERROR("Closing without opening");
                 EMIT(SKIP);
@@ -452,12 +511,18 @@
 
         '|'
         {
-          if(GET_STATE() == LINK){
-            EMIT(SEPARATOR);
-            fbreak;
-          } else {
-            EMIT(SKIP);
-            fbreak;
+          state = GET_STATE();
+          switch(state){
+              case LINK :
+                EMIT(SEPARATOR);
+                fbreak;
+              break;
+              case POST_LINK :
+                POP();
+              default : 
+                EMIT(SKIP);
+                fbreak;
+              break;
           }
         };
 
@@ -473,6 +538,8 @@
               case LINK :
                 PUSH(EXT_LINK_START,INNER_LINK);
               break;
+              case POST_LINK :
+                POP();
               case DEFAULT :
                 PUSH(EXT_LINK_START,LINK);
                 EMIT(EXT_LINK_START);
@@ -505,6 +572,8 @@
                 TODO(); //Close link tag                 
                 EMIT(EXT_LINK_END);
                 fbreak;
+              case POST_LINK :
+                POP();
               case DEFAULT :
                 ERROR("Closing tag without opening");
               break;
@@ -549,6 +618,8 @@
         {
             state = GET_STATE();
             switch(state){
+              case POST_LINK :
+                POP();
               case BLIND :
               case BLIND_LINK :
               case INNER_LINK :
@@ -572,11 +643,16 @@
               case INNER_LINK :
               case LINK :
                 TODO(); // Push token
-                EMIT(ALNUM);
+                EMIT(PRINTABLE);
                 fbreak;
               break;
               case DEFAULT :
-                PRINT("alnum");
+                PRINT("printable");
+                fbreak;
+              break;
+              case POST_LINK :
+                POP();
+                EMIT(PRINTABLE);
                 fbreak;
               break;
               default :
@@ -586,27 +662,37 @@
             }
         };
 
-        '>'
+        '>'+
         {
-            state = GET_STATE();
-            switch(state){
-              case DEFAULT :
-                PRINT("printable");
-                fbreak;
-              break;
-              case NOWIKI :
-                opening = LAST_TYPE();
-                if(opening == TAG_START) {
-                  POP(); 
+            if (out->column_start == 1) {
+              EMIT(SKIP);
+              fbreak;
+            } else {
+              state = GET_STATE();
+              switch(state){
+                case DEFAULT :
+                  PRINT("printable");
+                  fbreak;
+                break;
+                case POST_LINK :
+                  POP();
+                  EMIT(PRINTABLE);
+                  fbreak;
+                break;
+                case NOWIKI :
+                  opening = LAST_TYPE();
+                  if(opening == TAG_START) {
+                    POP(); 
+                    EMIT(SKIP);
+                    fbreak;
+                  }
+                break;
+                default :
+                  ERROR("Closing token without opening token");
                   EMIT(SKIP);
                   fbreak;
-                }
-              break;
-              default :
-                ERROR("Closing token without opening token");
-                EMIT(SKIP);
-                fbreak;
-              break;
+                break;
+              }
             }
         };
 
@@ -614,6 +700,8 @@
         {
             state = GET_STATE();
             switch(state){
+              case POST_LINK :
+                POP();
               case BLIND :
               case BLIND_LINK :
               case INNER_LINK :
@@ -642,6 +730,10 @@
               case DEFAULT :
                 PRINT_CRLF();
               break;
+              case POST_LINK :
+                POP();
+                EMIT(CRLF);
+              break;
               default :
                 EMIT(SKIP);
               break;
@@ -665,6 +757,11 @@
                 PRINT("printable");
                 fbreak;
               break;
+              case POST_LINK :
+                POP();
+                EMIT(PRINTABLE);
+                fbreak;
+              break;
               default :
                 EMIT(SKIP);
                 fbreak;
@@ -684,6 +781,11 @@
               break;
               case DEFAULT :
                 PRINT("num");
+                fbreak;
+              break;
+              case POST_LINK :
+                POP();
+                EMIT(NUM);
                 fbreak;
               break;
               default :
@@ -709,6 +811,11 @@
               break;
               case DEFAULT :
                 PRINT("alnum");
+                fbreak;
+              break;
+              case POST_LINK :
+                POP();
+                EMIT(ALNUM);
                 fbreak;
               break;
               default :
