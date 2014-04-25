@@ -43,7 +43,7 @@
 #define NEXT_CHAR() (*(p + 1))
 #define ERROR(msg)  do { printf("[%i:%i:%i:%i][31;1m",doc_id,(int)out->line_start,(int)out->column_start,GET_STATE()); printf(msg); printf("[0m: "); strncpy(error_msg,out->start,p-out->start+1); error_msg[p-out->start+1] = 0; printf("%s\n",error_msg);} while (0)
 #define PRINT_STACK() do {printf("%i %i %i %i\n",token_stack[(*token_stack_size)-1], state_stack[(*state_stack_size)-1], *token_stack_size, *state_stack_size); } while(0)
-#define PUSH(type,state) do { if(*token_stack_size == 100){ERROR("Token stack overflow");}else{ token_stack[(*token_stack_size)++] = type;}  if(*state_stack_size == 100){ERROR("State stack overflow");}else{state_stack[(*state_stack_size)++] = state;} } while (0)
+#define PUSH(type,state) do { if(*token_stack_size == 1000){ERROR("Token stack overflow");}else{ token_stack[(*token_stack_size)++] = type;}  if(*state_stack_size == 1000){ERROR("State stack overflow");}else{state_stack[(*state_stack_size)++] = state;} } while (0)
 #define POP()       do { if(*token_stack_size == 0){ERROR("Token stack underflow");}else{(*token_stack_size)--;} if(*state_stack_size == 0){ERROR("State stack underflow");}else{(*state_stack_size)--;} } while (0)
 #define LAST_TYPE() ( token_stack[(*token_stack_size)-1] )
 #define TODO()      do { } while (0)

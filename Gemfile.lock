@@ -1,0 +1,91 @@
+GIT
+  remote: git://github.com/apohllo/hadoop-csv.git
+  revision: 62eec8011802d9874f18d1391ca6267252698994
+  specs:
+    hadoop-csv (0.0.3)
+
+GIT
+  remote: git://github.com/apohllo/rod.git
+  revision: 35949856fa6e54980b59c9d1317f99fb2cee71c9
+  tag: v0.7.2.4
+  specs:
+    rod (0.7.2.4)
+      RubyInline (>= 3.10.0, < 4.0.0)
+      activemodel (~> 3.2.2)
+      bsearch (>= 1.5.0, < 1.6.0)
+      english (>= 0.5.0, < 0.6.0)
+
+PATH
+  remote: /home/cycmapping/wikipedia-umbel/category-parsing
+  specs:
+    syntax (0.0.1)
+      rubytree
+
+PATH
+  remote: /home/cycmapping/wikipedia-umbel/rlp
+  specs:
+    rlp-wiki (0.0.1)
+      ZenTest
+      cycr (~> 0.2.0)
+      rod (~> 0.7.2.4)
+      syntax
+
+GIT
+  remote: ssh://apohllo@klon.wzks.uj.edu.pl/home/repos/wikitext_scanner.git
+  revision: 7e8271d4d83b0f779a78148ddd23b6db92236720
+  specs:
+    wikitext_scanner (0.0.1)
+
+GEM
+  remote: http://rubygems.org/
+  specs:
+    RubyInline (3.12.2)
+      ZenTest (~> 4.3)
+    ZenTest (4.9.5)
+    activemodel (3.2.9)
+      activesupport (= 3.2.9)
+      builder (~> 3.0.0)
+    activesupport (3.2.9)
+      i18n (~> 0.6)
+      multi_json (~> 1.0)
+    bsearch (1.5.0)
+    builder (3.0.4)
+    colors (0.0.7)
+    cycr (0.2.2)
+      ref (~> 1.0.0)
+    english (0.5.0)
+    htmlentities (4.3.1)
+    i18n (0.6.1)
+    json (1.8.1)
+    multi_json (1.3.7)
+    progress (2.4.0)
+    rake (10.0.1)
+    ref (1.0.2)
+    rubytree (0.9.3)
+      json (~> 1.8)
+      structured_warnings (~> 0.1)
+    slop (3.5.0)
+    srx-english (0.1.2)
+      term-ansicolor (~> 1.0.5)
+    string_case_pl (0.1.2)
+    structured_warnings (0.1.4)
+    term-ansicolor (1.0.7)
+
+PLATFORMS
+  ruby
+
+DEPENDENCIES
+  activesupport
+  colors (~> 0.0.6)
+  cycr (~> 0.2.0)
+  hadoop-csv!
+  htmlentities
+  progress
+  rake
+  rlp-wiki!
+  rod!
+  slop
+  srx-english (~> 0.1.2)
+  string_case_pl (~> 0.1.0)
+  syntax!
+  wikitext_scanner!

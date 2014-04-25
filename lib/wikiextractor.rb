@@ -30,9 +30,9 @@ module Wikitext
     @@crlf_positions = Hash.new(0)
     @@errors = Hash.new(0)
 
-    def initialize
-      @out = File.open("test.csv","w")
-      @links = File.open("links.csv","w")
+    def initialize(segments_file,links_file)
+      @out = File.open(segments_file,"w")
+      @links = File.open(links_file,"w")
     end
 
     def print(contents)

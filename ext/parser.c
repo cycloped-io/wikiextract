@@ -49,7 +49,7 @@ void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack
     return;
   //printf("%i %i %i\n",*s1_size,stack1[0].start,stack1[*s1_size-1].stop);
   //printf("%i %i %i\n",*s2_size,stack2[0].start,stack2[*s2_size-1].stop);
-  fprintf(file_p2,"%i,%i,%i,%i,%i,",doc_id,(int)stack2[0].line_start,
+  fprintf(file_p2,"%i\t%i\t%i\t%i\t%i\t",doc_id,(int)stack2[0].line_start,
       (int)stack1[*s1_size-1].line_stop,(int)stack2[0].column_start,
       (int)stack1[*s1_size-1].column_stop);
 
@@ -66,7 +66,7 @@ void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack
     }
   }
   buf[offset] = 0;
-  fprintf(file_p2,"%s,",buf);
+  fprintf(file_p2,"%s\t",buf);
   free(buf);
 
   buf_size = 1;
@@ -160,8 +160,8 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
     char *pe = p + len;
     char *type = NULL;
     int state = DEFAULT;
-    int ts[100]; //TODO add checks
-    int ss[100]; //TODO add checks
+    int ts[1000];
+    int ss[1000];
     int ts_size = 1 ;
     int ss_size = 1 ;
     ss[0] = 0;
@@ -218,7 +218,10 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
               finish_link(&s1_size,&s2_size,stack1,stack2,file_p1,file_p2,doc_id,&token);
               state = DEFAULT;
             } else {
-              memcpy(&(stack1[s1_size++]),&token,sizeof(token_t));
+              if(s1_size < 1000)
+                memcpy(&(stack1[s1_size++]),&token,sizeof(token_t));
+              else
+                printf("[%i]Token stack overflow\n",doc_id);
             }
           break;
           case SPACE :
@@ -233,7 +236,10 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
               wikitext_print_token(&token,file_p1,doc_id,"num");
               state = DEFAULT;
             } else {
-              memcpy(&(stack1[s1_size++]),&token,sizeof(token_t));
+              if(s1_size < 1000)
+                memcpy(&(stack1[s1_size++]),&token,sizeof(token_t));
+              else
+                printf("[%i]Token stack overflow\n",doc_id);
             }
           break;
           case CRLF :
@@ -242,7 +248,10 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
               wikitext_print_crlf(&token,file_p1,doc_id); 
               state = DEFAULT;
             } else {
-              memcpy(&(stack1[s1_size++]),&token,sizeof(token_t));
+              if(s1_size < 1000)
+                memcpy(&(stack1[s1_size++]),&token,sizeof(token_t));
+              else
+                printf("[%i]Token stack overflow\n",doc_id);
             }
           break;
           case SKIP :
