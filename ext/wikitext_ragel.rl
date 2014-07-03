@@ -163,6 +163,8 @@
         "'"{1,5}
         {
             if (DISTANCE() > 1) {
+              if(GET_STATE() == POST_LINK)
+                POP();
               EMIT(SKIP);
               fbreak;
             } else {
@@ -193,6 +195,8 @@
         {
             if (out->column_start == 1 || last_token_type == BLOCKQUOTE)
             {
+                if(GET_STATE() == POST_LINK)
+                  POP();
                 REWIND();
                 EMIT(SKIP);
                 fbreak;
@@ -224,9 +228,11 @@
 
         ('#' | '*' | ';' | ':')+
         {
-            if (out->column_start == 1 )
+            if (out->column_start == 1 ) {
+                if(GET_STATE() == POST_LINK)
+                  POP();
                 EMIT(SKIP);
-            else {
+            } else {
               state = GET_STATE();
               switch(state){
                 case INNER_LINK :
@@ -257,6 +263,8 @@
             if (out->column_start == 1)
             {
                 REWIND();
+                if(GET_STATE() == POST_LINK)
+                  POP();
                 if (DISTANCE() <= 6) {
                   if (GET_STATE() == DEFAULT){
                     PRINT_CRLF();
@@ -271,6 +279,8 @@
             else if (AT_END() || NEXT_CHAR() == '\n' || NEXT_CHAR() == '\r')
             {
                 REWIND();
+                if(GET_STATE() == POST_LINK)
+                  POP();
                 if (DISTANCE() <= 6) {
                   if (GET_STATE() == DEFAULT){
                     PRINT_CRLF();
@@ -403,6 +413,7 @@
                 POP();
                 TODO(); //Close link tag                 
                 EMIT(LINK_END);
+                // used to combine links such as [[Alan]]owi
                 PUSH(SKIP,POST_LINK);
                 fbreak;
               break;
@@ -586,30 +597,40 @@
 
         '&quot;'
         {
+            if(GET_STATE() == POST_LINK)
+              POP();
             EMIT(SKIP);
             fbreak;
         };
 
         '&amp;'
         {
+          if(GET_STATE() == POST_LINK)
+            POP();
           EMIT(SKIP);
           fbreak;
         };
 
         '&' alpha+ digit* ';'
         {
+            if(GET_STATE() == POST_LINK)
+              POP();
             EMIT(SKIP);
             fbreak;
         };
 
         '&#' [xX] xdigit+ ';'
         {
+            if(GET_STATE() == POST_LINK)
+              POP();
             EMIT(SKIP);
             fbreak;
         };
 
         '&#' digit+ ';'
         {
+            if(GET_STATE() == POST_LINK)
+              POP();
             EMIT(SKIP);
             fbreak;
         };
@@ -665,6 +686,8 @@
         '>'+
         {
             if (out->column_start == 1) {
+              if(GET_STATE() == POST_LINK)
+                POP();
               EMIT(SKIP);
               fbreak;
             } else {
@@ -828,6 +851,8 @@
         # here is where we handle everything else
         (0x01..0x1f | 0x7f)   @non_printable_ascii 
         {
+                if(GET_STATE() == POST_LINK)
+                  POP();
                 EMIT(SKIP);
                 fbreak;
         };

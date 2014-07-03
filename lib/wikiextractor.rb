@@ -4,6 +4,12 @@ require 'csv'
 
 module Wikitext
   class Parser
+    class Token
+      def to_s
+        "<#{@string_value}:#{@token_type}>"
+      end
+    end
+
     START_NOWIKI_TOKENS = Set.new([:pre_start, :tag_start, :math_start])
 
     END_NOWIKI_TOKENS = Set.new([:pre_end, :tag_end, :math_end])

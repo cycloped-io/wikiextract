@@ -182,6 +182,7 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
         } else {
           next_token(&token, &token, NULL, pe, ts, ss, &ts_size, &ss_size, file_p1, doc_id);
         }
+        //rb_funcall(rb_mKernel, rb_intern("puts"), 1, wiki_token(&token));
         if(token.type == END_OF_FILE){
           if(state == POST_LINK) {
             finish_link1(&s1_size,&s2_size,stack1,stack2,file_p1,file_p2,doc_id);
