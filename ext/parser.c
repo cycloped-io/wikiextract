@@ -36,7 +36,7 @@
 #define IN_ANY_OF(type1, type2, type3) ary_includes3(parser->scope, type1, type2, type3)
 
 const char * space_type = "space";
-const char * printable_type = "printable";
+const char * printable_type = "print";
 const char * num_type = "num";
 const char * alnum_type = "alnum";
 const char * crlf_type = "alnum";
@@ -44,7 +44,9 @@ const char * crlf_type = "alnum";
 
 void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack2,
     FILE * file_p1, FILE * file_p2,int doc_id){
-  char * type;
+  const char * type;
+  int offset, buf_size;
+  char * buf;
   if(*s1_size == 0 || *s2_size == 0)
     return;
   //printf("%i %i %i\n",*s1_size,stack1[0].start,stack1[*s1_size-1].stop);
@@ -53,9 +55,9 @@ void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack
       (int)stack1[*s1_size-1].line_stop,(int)stack2[0].column_start,
       (int)stack1[*s1_size-1].column_stop);
 
-  int offset = 0;
-  int buf_size = stack2[*s2_size-1].stop-stack2[0].start+1;
-  char * buf = malloc(sizeof(char)*buf_size);
+  offset = 0;
+  buf_size = stack2[*s2_size-1].stop-stack2[0].start+1;
+  buf = malloc(sizeof(char)*buf_size);
   for(int i = 0; i < *s2_size; i++){
     if(stack2[i].type == CRLF) {
       strncpy(buf+offset,"\\n",2);
@@ -158,7 +160,7 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
     char *p = RSTRING_PTR(string);
     long len = RSTRING_LEN(string);
     char *pe = p + len;
-    char *type = NULL;
+    const char *type = NULL;
     int state = DEFAULT;
     int ts[1000];
     int ss[1000];
@@ -234,7 +236,7 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
             if(type == NULL) type = num_type;
             if(state == POST_LINK) {
               finish_link1(&s1_size,&s2_size,stack1,stack2,file_p1,file_p2,doc_id);
-              wikitext_print_token(&token,file_p1,doc_id,"num");
+              wikitext_print_token(&token,file_p1,doc_id,type);
               state = DEFAULT;
             } else {
               if(s1_size < 1000)

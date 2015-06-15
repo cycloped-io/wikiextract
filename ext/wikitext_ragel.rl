@@ -171,7 +171,7 @@
               state = GET_STATE();
               switch(state) {
                 case DEFAULT :
-                  PRINT("printable");
+                  PRINT("print");
                   fbreak;
                 break;
                 case INNER_LINK :
@@ -238,11 +238,11 @@
                 case INNER_LINK :
                 case LINK :
                   TODO(); // Push token
-                  EMIT(SPACE);
+                  EMIT(PRINTABLE);
                   fbreak;
                 break;
                 case DEFAULT :
-                  PRINT("space");
+                  PRINT("print");
                   fbreak;
                 break;
                 case POST_LINK :
@@ -668,7 +668,7 @@
                 fbreak;
               break;
               case DEFAULT :
-                PRINT("printable");
+                PRINT("print");
                 fbreak;
               break;
               case POST_LINK :
@@ -694,7 +694,7 @@
               state = GET_STATE();
               switch(state){
                 case DEFAULT :
-                  PRINT("printable");
+                  PRINT("print");
                   fbreak;
                 break;
                 case POST_LINK :
@@ -777,7 +777,7 @@
                 fbreak;
               break;
               case DEFAULT :
-                PRINT("printable");
+                PRINT("print");
                 fbreak;
               break;
               case POST_LINK :

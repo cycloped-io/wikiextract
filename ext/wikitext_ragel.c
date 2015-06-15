@@ -177,7 +177,7 @@ tr0:
                 {p++; cs = 98; goto _out;}
               break;
               case DEFAULT :
-                PRINT("printable");
+                PRINT("print");
                 {p++; cs = 98; goto _out;}
               break;
               case POST_LINK :
@@ -259,7 +259,7 @@ tr7:
                 {p++; cs = 98; goto _out;}
               break;
               case DEFAULT :
-                PRINT("printable");
+                PRINT("print");
                 {p++; cs = 98; goto _out;}
               break;
               case POST_LINK :
@@ -561,7 +561,7 @@ tr104:
                 {p++; cs = 98; goto _out;}
               break;
               case DEFAULT :
-                PRINT("printable");
+                PRINT("print");
                 {p++; cs = 98; goto _out;}
               break;
               case POST_LINK :
@@ -708,11 +708,11 @@ tr130:
                 case INNER_LINK :
                 case LINK :
                   TODO(); // Push token
-                  EMIT(SPACE);
+                  EMIT(PRINTABLE);
                   {p++; cs = 98; goto _out;}
                 break;
                 case DEFAULT :
-                  PRINT("space");
+                  PRINT("print");
                   {p++; cs = 98; goto _out;}
                 break;
                 case POST_LINK :
@@ -740,7 +740,7 @@ tr131:
                 {p++; cs = 98; goto _out;}
               break;
               case DEFAULT :
-                PRINT("printable");
+                PRINT("print");
                 {p++; cs = 98; goto _out;}
               break;
               case POST_LINK :
@@ -767,7 +767,7 @@ tr135:
               state = GET_STATE();
               switch(state) {
                 case DEFAULT :
-                  PRINT("printable");
+                  PRINT("print");
                   {p++; cs = 98; goto _out;}
                 break;
                 case INNER_LINK :
@@ -797,7 +797,7 @@ tr139:
               state = GET_STATE();
               switch(state) {
                 case DEFAULT :
-                  PRINT("printable");
+                  PRINT("print");
                   {p++; cs = 98; goto _out;}
                 break;
                 case INNER_LINK :
@@ -861,7 +861,7 @@ tr147:
                 {p++; cs = 98; goto _out;}
               break;
               case DEFAULT :
-                PRINT("printable");
+                PRINT("print");
                 {p++; cs = 98; goto _out;}
               break;
               case POST_LINK :
@@ -1021,7 +1021,7 @@ tr176:
               state = GET_STATE();
               switch(state){
                 case DEFAULT :
-                  PRINT("printable");
+                  PRINT("print");
                   {p++; cs = 98; goto _out;}
                 break;
                 case POST_LINK :

@@ -67,7 +67,7 @@ lower.upto(upper) do |current_id|
   # read segmens
   last_position = segments_file.pos
   segments_file.each do |line|
-    article_id,type,line_start,line_end,token_start,token_end,*token = line.chomp.split(",")
+    article_id,line_start,line_end,token_start,token_end,type,*token = line.chomp.split("\t")
     article_id = article_id.to_i
     next if article_id < current_id
     Progress.set(article_id-lower)

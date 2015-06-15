@@ -38,7 +38,7 @@ task :all => [:make] #, :spec]
 
 extension_makefile  = 'ext/Makefile'
 ragel               = 'ext/wikitext_ragel.c'
-built_extension     = "ext/wikitext.#{Config::CONFIG['DLEXT']}" # wikitext.bundle (Darwin), wikitext.so (Linux)
+built_extension     = "ext/wikitext.#{RbConfig::CONFIG['DLEXT']}" # wikitext.bundle (Darwin), wikitext.so (Linux)
 extension_files     = FileList[
   'ext/Makefile',
   'ext/parser.c',
