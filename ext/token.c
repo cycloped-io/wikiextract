@@ -115,6 +115,7 @@ VALUE Wikitext_parser_token_types(VALUE self)
 // for testing and debugging only
 VALUE wiki_token(token_t *token)
 {
+    VALUE types, type;
     VALUE object = rb_class_new_instance(0, NULL, cWikitextParserToken);
     (void)rb_iv_set(object, "@start",           LONG2NUM((long)token->start));
     (void)rb_iv_set(object, "@stop",            LONG2NUM((long)token->stop));
@@ -125,8 +126,8 @@ VALUE wiki_token(token_t *token)
     (void)rb_iv_set(object, "@code_point",      INT2NUM(token->code_point));
 
     // look-up the token type
-    VALUE types = Wikitext_parser_token_types(Qnil);
-    VALUE type  = rb_hash_aref(types, INT2FIX(token->type));
+    types = Wikitext_parser_token_types(Qnil);
+    type  = rb_hash_aref(types, INT2FIX(token->type));
     (void)rb_iv_set(object, "@token_type",      type);
     (void)rb_iv_set(object, "@string_value",    rb_str_new(token->start, token->stop - token->start));
     return object;

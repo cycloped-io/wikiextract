@@ -268,3 +268,14 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
     } while(1);
     return tokens;
 }
+
+VALUE Wikitext_parser_flush(VALUE self,VALUE file){
+  rb_io_t * file_p_struct;
+  FILE * file_p;
+  Check_Type(file,T_FILE);
+  rb_io_binmode(file);
+  GetOpenFile(file,file_p_struct);
+  file_p = rb_io_stdio_file(file_p_struct);
+  fflush(file_p);
+  return Qnil;
+}

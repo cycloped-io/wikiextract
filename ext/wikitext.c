@@ -53,6 +53,7 @@ void Init_wikitext()
     // Wikitext::Parser
     cWikitextParser = rb_define_class_under(mWikitext, "Parser", rb_cObject);
     rb_define_method(cWikitextParser, "tokenize", Wikitext_parser_tokenize, 4);
+    rb_define_method(cWikitextParser, "flush_internal", Wikitext_parser_flush, 1);
 
     // Wikitext::Parser::Error
     eWikitextParserError = rb_define_class_under(cWikitextParser, "Error", rb_eException);

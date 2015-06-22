@@ -27,3 +27,5 @@ VALUE Wikitext_parser_initialize(int argc, VALUE *argv, VALUE self);
 
 VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file2, 
     VALUE id);
+
+VALUE Wikitext_parser_flush(VALUE self, VALUE file1);

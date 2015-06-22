@@ -56,6 +56,11 @@ module Wikitext
       @message = ""
     end
 
+    def flush_files
+      flush_internal(@out)
+      flush_internal(@links)
+    end
+
     def close
       @out.close
       @links.close
