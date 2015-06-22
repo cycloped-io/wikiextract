@@ -1,27 +1,24 @@
 #!/usr/bin/env ruby
 
 require 'bundler/setup'
-$:.unshift "."
 require_relative '../ext/wikitext'
 require_relative '../lib/wikiextractor'
 require 'csv'
 require 'pp'
-require 'rlp/wiki'
 require 'progress'
 require 'slop'
 
 options = Slop.new do
-  banner "#{$PROGRAM_NAME} -w dump.xml -d database -s segments.csv -l links.csv [-a article_id|-r range]\n" +
-    "#{$PROGRAM_NAME} -f file.txt -s segments.csv -l links.csv\n" +
-    "Convert Wikipedia XML dump to CSV containing text segments and links.\n"
-    "The results are always stored in "
+  banner "#{$PROGRAM_NAME} -w dump.xml -d database -t tokens.tsv -l links.tsv [-a article_id|-r range]\n" +
+    "#{$PROGRAM_NAME} -f file.txt -t tokens.tsv -l links.tsv\n" +
+    "Convert Wikipedia XML dump to CSV containing text tokens and links.\n"
 
   on :w=, :wikipedia, "Wikipedia dump path"
   on :d=, :database, "Rod database with Wikipedia data"
   on :f=, :input, "Text file to parse"
-  on :a=, :"article-id", "Id of article to parse", as: Integer
-  on :r=, :range, "Range of article ids to be parsed (default 0-10000)"
-  on :s=, :segments, "Output file with segments (tokens)", required: true
+  on :a=, :"article-id", "ROD id of article to parse", as: Integer
+  on :r=, :range, "Range of article ids to be parsed (default all)", as: Range, default: (0..-1)
+  on :t=, :tokens, "Output file with tokens", required: true
   on :l=, :links, "Output file with links", required: true
 end
 
@@ -39,34 +36,33 @@ if options[:input].nil? && (options[:wikipedia].nil? || options[:database].nil?)
   exit
 end
 
-parser = Wikitext::Parser.new(options[:segments],options[:links])
+parser = Wikitext::Parser.new(options[:tokens],options[:links])
 article_id = options[:"article-id"]
 
-if options[:range]
-  _,start,stop = options[:range].match(/(\d+)-(\d+)/).to_a.map(&:to_i)
-else
-  start = 0
-  stop = 10000
-end
+start = options[:range].first
+stop = options[:range].last
 
 if options[:wikipedia]
-  Rlp::Wiki::Page.path = options[:wikipedia]
-  Rlp::Wiki::Database.instance.open_database(options[:database])
+  require 'cyclopedio/wiki'
+  Cyclopedio::Wiki::Page.path = options[:wikipedia]
+  Cyclopedio::Wiki::Database.instance.open_database(options[:database])
+  stop = Cyclopedio::Wiki::Article.count + stop if stop < 0
+  stop = [stop,Cyclopedio::Wiki::Article.count].min
 
-  Progress.start("Wiki segments",stop-start)
-  Rlp::Wiki::Concept.each do |concept|
-    next if !article_id && concept.wiki_id < start
-    break if !article_id && concept.wiki_id > stop
-    Progress.set(concept.wiki_id)
+  Progress.start("Wiki tokens",stop-start)
+  Cyclopedio::Wiki::Article.each do |article|
+    next if !article_id && article.rod_id < start
+    break if !article_id && article.rod_id > stop
+    Progress.set(article.rod_id-start)
     if article_id
-      next if concept.wiki_id < article_id
-      break if concept.wiki_id > article_id
+      next if article.rod_id < article_id
+      break if article.rod_id > article_id
     end
-    parser.parse(concept.contents,concept.wiki_id)
+    parser.parse(article.contents,article.rod_id)
   end
   parser.close
   Progress.stop
-  Rlp::Wiki::Database.instance.close_database
+  Cyclopedio::Wiki::Database.instance.close_database
 else
   parser.parse(File.read(options[:input]),0)
   parser.close
