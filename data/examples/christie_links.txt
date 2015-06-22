@@ -1,0 +1,5 @@
+0	2	2	9	24	34471956	34471971	Herkules Poirot	Herkules Poirot
+0	2	2	36	52	34471983	34471999	Belgia	belgijski
+0	2	2	57	65	34472004	34472012	detektyw	detektyw
+0	3	3	9	20	34472023	34472034	Jane Marple	Jane Marple
+0	4	4	17	32	34472087	34472102	Arthur Hastings	Arthur Hastings
