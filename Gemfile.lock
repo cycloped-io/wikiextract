@@ -1,6 +1,11 @@
 GIT
-  remote: https://github.com/cycloped-io/wiki.git
-  revision: 2569c4783857e34cab9ad3c67a22ee46e70920df
+  remote: git://github.com/djstrong/progress.git
+  revision: 46b34854f62c5f96a116cd971cd6d6226796e35c
+  specs:
+    progress (3.0.0)
+
+PATH
+  remote: ../wiki
   specs:
     cyclopedio-wiki (0.1.0)
       rod (~> 0.7.4.0)
@@ -26,7 +31,6 @@ GEM
     htmlentities (4.3.1)
     i18n (0.6.1)
     multi_json (1.3.7)
-    progress (2.4.0)
     rake (10.0.1)
     ref (1.0.5)
     rod (0.7.4.1)
@@ -50,7 +54,7 @@ DEPENDENCIES
   cyclopedio-wiki!
   cycr (~> 0.2.0)
   htmlentities
-  progress
+  progress!
   rake
   rod (~> 0.7.4.1)
   slop
