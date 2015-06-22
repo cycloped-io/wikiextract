@@ -56,7 +56,7 @@ class SimpleLink < Struct.new(:article_id,:line_start,:line_stop,:token_start,:t
   end
 end
 
-class SimpleToken < Struct.new(:article_id,:line_start,:line_stop,:token_start,:token_stop,:type,:value)
+class SimpleToken < Struct.new(:article_id,:line_start,:line_stop,:token_start,:token_stop,:type,:value,:wiki_token)
 end
 
 include Cyclopedio::Wiki
@@ -75,21 +75,22 @@ tokens_fiber = Fiber.new do
       input.each do |line|
 	begin
 	  tuple = line.chomp.split("\t")
-	  simple_token = SimpleToken.new(*tuple[0..4].map(&:to_i),tuple[-2],tuple[-1])
-	  next if simple_token.article_id < options[:offset]
-	  break if simple_token.article_id >= limit
-	  tokens.push(simple_token.article_id) if tokens.nil?
+	  token = SimpleToken.new(*tuple[0..4].map(&:to_i),tuple[-2],tuple[-1],nil)
+	  next if token.article_id < options[:offset]
+	  break if token.article_id >= limit
+	  tokens = [token.article_id] if tokens.nil?
 
-	  if tokens.first != simple_token.article_id
+	  if tokens.first != token.article_id
 	    output << tokens unless tokens.size <= 1
 	    tokens.clear
-	    tokens.push(simple_token.article_id)
+	    tokens.push(token.article_id)
 	  end
-	  if simple_token.type != "space" && simple_token.type != "crlft"
-	    token = Token.find_by_value(simple_token.value)
-	    if token
-	      tokens << token.rod_id 
-	      Fiber.yield(simple_token,token)
+	  if token.type != "space" && token.type != "crlft"
+	    wiki_token = Token.find_by_value(token.value)
+	    if wiki_token
+	      tokens << wiki_token.rod_id 
+	      token.wiki_token = wiki_token
+	      Fiber.yield(token)
 	    end
 	  end
 	rescue => ex
@@ -98,6 +99,7 @@ tokens_fiber = Fiber.new do
 	  STDERR.puts ex.backtrace
 	end
       end
+      output << tokens unless tokens.size <= 1
     end
   end
   nil
@@ -105,48 +107,42 @@ end
 
 CSV.open(options[:output],"w") do |output|
   File.open(options[:links],"r:utf-8") do |input|
-    index = 0
-    last_link_article_id = nil
-    token_article_id = nil
-    token_start_id = nil
-    token_stop_id = nil
-    type = nil
-    simple_token = nil
-    token = nil
+    last_id = options[:offset] - 1
+    token = tokens_fiber.resume
     ids = []
-    Progress.start(limit) unless options[:quiet]
+    Progress.start(limit-options[:offset]) unless options[:quiet]
     input.each do |link_line|
       begin
 	tuple = link_line.chomp.split("\t")
 	link = SimpleLink.new(*tuple[0..4].map(&:to_i),tuple[-2],tuple[-1])
-	if link.article_id != last_link_article_id
-	  index += 1 
+
+	next if link.article_id < options[:offset]
+	break if link.article_id >= limit
+	if link.article_id != last_id
 	  Progress.step unless options[:quiet]
 	end
-	last_link_article_id = link.article_id
+	last_id = link.article_id
 
-	next if index < options[:offset]
-	break if index >= limit
-
-	source = Article.find_by_rod_id(link.article_id)
-	next if source.nil?
 	target_name = link.target[0].upcase + link.target[1..-1]
 	target = Article.find_with_redirect(target_name)
 	next if target.nil?
 
-	while(simple_token.nil? || link > simple_token) do
-	  simple_token,token = tokens_fiber.resume
-	  break if simple_token.nil?
+	while(link > token) do
+	  token = tokens_fiber.resume
+	  break if token.nil?
 	end
+	break if token.nil?
 	#p ["l:#{target_name}",link.article_id,link.line_start,link.line_stop]
 	ids.clear
-	while(link.include?(simple_token))
-	  #p ["t:#{simple_token.value}",simple_token.article_id,simple_token.line_start,simple_token.line_stop]
-	  counter[token.rod_id] += 1
-	  ids << token.rod_id
-	  simple_token,token = tokens_fiber.resume
+	while(link.include?(token))
+	  #p ["t:#{token.value}",token.article_id,token.line_start,token.line_stop]
+	  counter[token.wiki_token.rod_id] += 1
+	  ids << token.wiki_token.rod_id
+	  token = tokens_fiber.resume
+	  break if token.nil?
 	end
-	output << [ids.join("_"),"#{source.rod_id}_#{target.rod_id}"] unless ids.empty?
+	break if token.nil?
+	output << [ids.join("_"),"#{link.article_id}_#{target.rod_id}"] unless ids.empty?
       rescue Interrupt
 	break
       rescue => ex
@@ -157,6 +153,9 @@ CSV.open(options[:output],"w") do |output|
     end
     Progress.stop unless options[:quiet]
   end
+end
+while(tokens_fiber.alive?) do
+  tokens_fiber.resume
 end
 CSV.open(options[:counts],"w") do |counts|
   counter.each do |key,value|
