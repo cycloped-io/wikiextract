@@ -7,13 +7,13 @@ require 'csv'
 require 'progress'
 
 options = Slop.new do
-  banner "#{$PROGRAM_NAME} -s segments.csv -l links.csv [-a article_id|-r 0:10]\n" +
+  banner "#{$PROGRAM_NAME} -t tokens.csv -l links.csv [-a article_id|-r 0:10]\n" +
     "Display dumped Wikipedia article"
 
-  on :s=, :segments, "Dump of Wikipedia segments", required: true
+  on :t=, :tokens, "Dump of Wikipedia tokens", required: true
   on :l=, :links, "Dump of Wikipedia links", required: true
   on :a=, :"article-id", "Id of article to display", as: Integer
-  on :r=, :range, "Range of article ids"
+  on :r=, :range, "Range of article ids", as: Range, default: (0...1)
   on :o=, :output, "Output file with text and marked links"
 end
 
@@ -28,36 +28,31 @@ end
 if options[:"article-id"]
   lower = upper = options[:"article-id"]
 else
-  _,lower,upper = options[:range].match(/(\d+)-(\d+)/).to_a.map(&:to_i)
+  lower = options[:range].first
+  upper = options[:range].last
 end
 
-class Link < Struct.new(:article_id,:line_start,:line_end,:start,:end,:link,:text)
+class SimpleLink < Struct.new(:article_id,:start,:end,:link,:text)
   def includes?(token)
-    self.article_id == token.article_id && self.line_start <= token.line_start &&
-      self.line_end >= token.line_end && self.start <= token.start &&
-      self.end >= token.end
+    self.article_id == token.article_id && self.start <= token.start && self.end >= token.end
   end
 
   def follows?(token)
-    self.article_id == token.article_id &&
-      self.line_end == token.line_end &&
-      self.end == token.end
+    self.article_id == token.article_id && self.end == token.end
   end
 
 
   def before?(token)
     self.article_id < token.article_id ||
-      (self.article_id == token.article_id &&
-       (self.line_end < token.line_start ||
-        (self.line_end == token.line_start && self.end < token.start)))
+      (self.article_id == token.article_id && self.end < token.start)
   end
 end
 
-class Token < Struct.new(:article_id,:type,:line_start,:line_end,:start,:end,:token)
+class SimpleToken < Struct.new(:article_id,:type,:start,:end,:token)
 end
 
 tokens = []
-segments_file = File.open(options[:segments])
+tokens_file = File.open(options[:tokens])
 links_file = File.open(options[:links])
 output = File.open(options[:output],"w") if options[:output]
 Progress.start(upper-lower)
@@ -65,32 +60,29 @@ lower.upto(upper) do |current_id|
   tokens = []
   links = []
   # read segmens
-  last_position = segments_file.pos
-  segments_file.each do |line|
-    article_id,line_start,line_end,token_start,token_end,type,*token = line.chomp.split("\t")
+  last_position = tokens_file.pos
+  tokens_file.each do |line|
+    article_id,line_start,line_end,token_start,token_end,byte_start,byte_end,type,*token = line.chomp.split("\t")
     article_id = article_id.to_i
     next if article_id < current_id
     Progress.set(article_id-lower)
     break if article_id > current_id
-    last_position = segments_file.pos
-    token = token.join(",")
-    tokens << Token.new(article_id,type,line_start.to_i,line_end.to_i,token_start.to_i,token_end.to_i,token)
+    last_position = tokens_file.pos
+    token = token.join("\t")
+    tokens << SimpleToken.new(article_id,type,byte_start.to_i,byte_end.to_i,token)
   end
-  segments_file.pos = last_position
+  tokens_file.pos = last_position
 
   # read links
   last_position = links_file.pos
   links_file.each do |line|
-    article_id,line_start,line_end,token_start,token_end,link,text = line.chomp.split("\t")
+    article_id,line_start,line_end,token_start,token_end,byte_start,byte_end,link,text = line.chomp.split("\t")
     article_id = article_id.to_i
     next if article_id < current_id
     Progress.set(article_id-lower)
     break if article_id > current_id
     last_position = links_file.pos
-    # This is correct - but we have invalid data, so we assume that
-    # links are always in the same line.
-    #links << Link.new(article_id,line_start.to_i,line_end.to_i,token_start.to_i,token_end.to_i,link,text)
-    links << Link.new(article_id,line_end.to_i,line_end.to_i,token_start.to_i,token_end.to_i,link,text)
+    links << SimpleLink.new(article_id,byte_start.to_i,byte_end.to_i,link,text)
   end
   links_file.pos = last_position
 
@@ -123,7 +115,7 @@ lower.upto(upper) do |current_id|
       end
       while(link) do
         if link.before?(token)
-          result << ":" << link.hl(:red) unless output
+	  result << ":" << link.link.hl(:red) unless output
           links.shift
           link = links.first
           in_link = false
@@ -143,6 +135,6 @@ lower.upto(upper) do |current_id|
   output.puts result.gsub(/(\\n)+/,"\n") if output
 end
 Progress.stop
-segments_file.close
+tokens_file.close
 links_file.close
 output.close if output
