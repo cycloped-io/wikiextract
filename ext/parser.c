@@ -53,8 +53,8 @@ void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack
   //printf("%i %i %i\n",*s2_size,stack2[0].start,stack2[*s2_size-1].stop);
   fprintf(file_p2,"%i\t%li\t%li\t",
       doc_id,
-      (long)stack2[0].start,
-      (long)stack1[*s1_size-1].stop);
+      (long)stack2[0].token_number,
+      (long)stack1[*s1_size-1].token_number);
 
   offset = 0;
   buf_size = stack2[*s2_size-1].stop-stack2[0].start+1;

@@ -37,14 +37,16 @@ class SimpleLink < Struct.new(:article_id,:start,:end,:link,:text)
     self.article_id == token.article_id && self.start <= token.start && self.end >= token.end
   end
 
-  def follows?(token)
+  def last?(token)
     self.article_id == token.article_id && self.end == token.end
   end
 
 
   def before?(token)
-    self.article_id < token.article_id ||
+    result = self.article_id < token.article_id ||
       (self.article_id == token.article_id && self.end < token.start)
+    p [self.link, token.token, self.end, token.start] if result
+    result
   end
 end
 
@@ -114,7 +116,7 @@ lower.upto(upper) do |current_id|
   # read segmens
   last_position = tokens_file.pos
   tokens_file.each do |line|
-    article_id,byte_start,byte_end,space,*token = line.chomp.split("\t")
+    article_id,token_start,space,*token = line.chomp.split("\t")
     article_id = article_id.to_i
     next if article_id < current_id
     Progress.set(article_id-lower)
@@ -122,20 +124,20 @@ lower.upto(upper) do |current_id|
     last_position = tokens_file.pos
     token = token.join("\t")
     space = (space == "1")
-    tokens << SimpleToken.new(article_id,space,byte_start.to_i,byte_end.to_i,token)
+    tokens << SimpleToken.new(article_id,space,token_start.to_i,token_start.to_i,token)
   end
   tokens_file.pos = last_position
 
   # read links
   last_position = links_file.pos
   links_file.each do |line|
-    article_id,byte_start,byte_end,link,text = line.chomp.split("\t")
+    article_id,token_start,token_end,link,text = line.chomp.split("\t")
     article_id = article_id.to_i
     next if article_id < current_id
     Progress.set(article_id-lower)
     break if article_id > current_id
     last_position = links_file.pos
-    links << SimpleLink.new(article_id,byte_start.to_i,byte_end.to_i,link,text)
+    links << SimpleLink.new(article_id,token_start.to_i,token_end.to_i,link,text)
   end
   links_file.pos = last_position
 
@@ -146,13 +148,13 @@ lower.upto(upper) do |current_id|
       link = links.first
       if link && link.includes?(token)
         output_service.push_link_source(token)
+        if link.last?(token)
+          output_service.push_link_target(link)
+          links.shift
+          link = links.first
+        end
       else
         output_service.push_token(token)
-      end
-      if link && link.follows?(token)
-        output_service.push_link_target(link)
-        links.shift
-        link = links.first
       end
       while(link) do
         if link.before?(token)
@@ -160,7 +162,7 @@ lower.upto(upper) do |current_id|
           links.shift
           link = links.first
         else
-          link = nil
+          break
         end
       end
     rescue => ex

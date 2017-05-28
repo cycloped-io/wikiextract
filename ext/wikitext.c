@@ -36,13 +36,9 @@ void wikitext_print_token(token_t * token,FILE * file_p,int doc_id, const char *
   if(type[0] == 's') {
     preceding_space = 1;
   } else {
-    printf("%i %s ",token->type, type);
-    fwrite(token->start,1,token->stop-token->start,stdout); 
-    printf("\n");
-    fprintf(file_p,"%i\t%li\t%li\t%i\t",doc_id,
-        (long)token->start, (long)token->stop, 
-        preceding_space); 
-    fwrite(token->start, 1, token->stop-token->start,file_p); 
+    fprintf(file_p,"%i\t%li\t%i\t",doc_id,
+        token->token_number,preceding_space);
+    fwrite(token->start, 1, token->stop-token->start,file_p);
     fprintf(file_p,"\n");
     preceding_space = 0;
   }
@@ -55,7 +51,7 @@ void wikitext_print_crlf(token_t * token,FILE * file_p, int doc_id){
   }
   fprintf(file_p,"%i\t%i\t%i\t%i\t%i\t\\n",doc_id,
       (int)token->line_start, (int)token->line_stop,
-      (int)token->column_start,(int)token->column_stop); 
+      (int)token->column_start,(int)token->column_stop);
   fprintf(file_p,"\n");
 }
 
