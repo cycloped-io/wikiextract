@@ -35,6 +35,8 @@ when /\A1\.9/
   $CFLAGS += ' -DRUBY_1_9_x'
 when /\A2\.1/
   $CFLAGS += ' -DRUBY_2_1_x'
+when /\A2\.2/
+  $CFLAGS += ' -DRUBY_2_2_x'
 else
   raise "unsupported Ruby version: #{RUBY_VERSION}"
 end

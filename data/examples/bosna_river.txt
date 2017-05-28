@@ -1,0 +1,97 @@
+
+{{Geobox|River
+<!-- *** Heading *** -->
+| name = Bosna
+| native_name = 
+| other_name = 
+| category = 
+<!-- *** Names **** --> 
+| etymology = 
+| nickname = 
+<!-- *** Image *** -->
+| image = ZENICA (Bosnie Herzégovine).jpg
+| image_caption =The Bosna River flowing through [[Zenica]].
+| image_size =
+<!-- *** Country *** -->
+| country = Bosnia and Herzegovina
+| state = 
+| region = 
+| district = 
+| municipality = 
+<!-- *** Family *** -->
+| parent =
+| tributary_left =
+| tributary_right = 
+| city_fold = yes
+| city = Visoko, Bosnia and Herzegovina
+| city1 = Kakanj
+| city2 = Zenica
+| city3 = Maglaj
+| city4 = Doboj
+| city5 = Modriča
+| city6 = Bosanski Šamac
+| landmark = 
+<!-- *** River locations *** -->
+| source = [[Vrelo Bosne]]
+| source_location = [[Igman]], [[Ilidža]]
+| source_region = 
+| source_country = Bosnia and Herzegovina
+| source_elevation =
+| source_coordinates = {{coord|43|49|6.6|N|18|16|11.9|E|display=inline}}
+| source1 = 
+| source1_location = 
+| source1_region = 
+| source1_country =
+| source1_elevation = 
+| mouth = [[Sava]]
+| mouth_location = [[Bosanski Šamac]]
+| mouth_region = 
+| mouth_country = Bosnia and Herzegovina
+| mouth_elevation =
+| capital_coordinates = 
+| mouth_coordinates = {{coord|45|4|0|N|18|28|1|E|display=inline,title}}
+| length = 271
+| width = 
+| depth = 
+| volume =
+| watershed = 10457
+| discharge = 174
+| discharge_location = 
+| discharge_max =
+| discharge_min =
+| free = 
+| free_type = 
+| map =
+| map_caption = 
+| map_background = 
+| map_locator =
+| map_locator_x =
+| map_locator_y = 
+| commons = Bosna River}}
+
+[[File:Vrelo Bosne, Sarajevo.jpg|thumb|250px|right|none|The source of the Bosna river on the outskirts of Sarajevo.]]
+The river  '''Bosna''' ({{IPA-sh|bɔ̂sna|pron}}) (Cyrillic: Босна) is the third longest [[river]] in [[Bosnia and Herzegovina]], and is considered one of the country's three major internal rivers, along with the [[Neretva]] and the [[Vrbas (river)|Vrbas]]; the other three major rivers of Bosnia and Herzegovina are the [[Una (Sava)|Una]], to the northwest, the [[Sava]], to the north, and the [[Drina]], to the east.  It is the namesake of [[Bosnia]]. The Bosna flows for {{convert|271|km|mi|sp=us}}.
+
+The river is possibly mentioned for the first time during the 1st century AD by Roman historian [[Marcus Velleius Paterculus]] under the name ''Bathinus flumen''.<ref>{{cite web |url=https://pleiades.stoa.org/places/197162 |title=Places: 197162 (Bathinus (river)) |author=Šašel Kos, M., P. Kos |accessdate=January 22, 2017 |publisher=Pleiades}}</ref><ref>{{cite book|author= Salmedin Mesihović|title=Ilirike|publisher=Filozofski fakultet u Sarajevu|volume=|page=80|location=[[Sarajevo]]|url=https://books.google.se/books?id=cK83AwAAQBAJ&printsec=frontcover&hl=sv&source=gbs_ge_summary_r&cad=0#v=onepage&q&f=false|year=2014}}</ref><ref>Velleius Paterculus, Historia Romana 2.114.4.6 http://latin.packhum.org/loc/1044/1/131/1509-1516</ref> Another basic source that are associated with the hydronym ''Bathinus'' is the [[Salona|Salonitan]] inscription of the governor of Dalmatia, [[Publius Cornelius Dolabella]], where it's said that the ''Bathinum'' river divides the [[Breuci]] from the [[Osseriates]].<ref>{{cite book|author= Salmedin Mesihović|title=AEVVM DOLABELLAE – DOLABELINO DOBA|publisher=Centar za balkanološka ispitivanja, Akademija nauka i umjetnosti|volume=XXXIX|page=10|location=[[Sarajevo]]|url=http://www.academia.edu/3613510/Aevum_Dolabellae_Dolabelino_doba|year=2010}}</ref>
+According to philologist Anton Mayer the name ''Bosna'' could be derived from [[Illyrian language|Illyrian]] ''Bass-an-as(-ā)'' which would be a diversion of the Proto-Indo-European root *''bhoĝ''-, meaning "the running water".<ref>{{cite book|author=Indira Šabić|title=Onomastička analiza bosanskohercegovačkih srednjovjekovnih administrativnih tekstova i stećaka|publisher=Sveučilište Josipa Jurja Strossmayera
+|volume=|page=165|location=[[Osijek]]|url=http://web.ffos.hr/poslijediplomski/dat/s_128/File/Doktorska_teza_-_Indira_Sabic_-_finalna_verzija.pdf|year=2014}}</ref> 
+
+==Course and tributaries==
+The '''Bosna''' river also makes up the Bosna River Valley, the country's industrial center and home to close to a million people, as well as the location of several major cities. The river's biggest [[tributary|tributaries]] are the [[Željeznica (Bosnia and Herzegovina)|Željeznica]], [[Miljacka]], [[Fojnička rijeka|Fojnica]], [[Lašva]], Gostović, [[Krivaja (Bosna)|Krivaja]], [[Usora River|Usora]], and [[Spreča]] rivers.
+
+Its source is at the spring [[Vrelo Bosne]], at the [[foothills]] of the Mount [[Igman]], on the outskirts of [[Sarajevo]], capital of Bosnia and Herzegovina.  The spring is one of Bosnia and Herzegovina's chief natural landmarks and [[tourist attraction]]s. From there, the Bosna flows northwards, through the heart of [[Bosnia (region)|Bosnia]], eventually becoming a right [[tributary]] of the [[Sava (river)|Sava River]] in [[Bosanski Šamac]]. The Bosna flows through a number of [[Cantons of Bosnia|cantons]]. From its starting point in the [[Sarajevo Canton]], it flows through [[Zenica-Doboj Canton]], Doboj Region, and [[Posavina Canton]], in that order. On its way north the River Bosna also passes through the cities of [[Visoko, Bosnia and Herzegovina|Visoko]], [[Zenica]], [[Maglaj]], [[Doboj]], [[Modriča]] and [[Bosanski Šamac]].{{cn|date=August 2015}}
+
+<gallery mode=packed heights=105px>
+File:River Bosna, Sarajevo (4).JPG|Bosna river flow outside [[Sarajevo]]
+File:Vrelo Bosne, Sarajevo park.JPG|Bosna river pond in [[Ilidža]]
+File:River Bosna, Sarajevo (1).JPG|Bosna river in [[Ilidža]]
+File:Rimski most.jpg|[[Roman bridge on Ilidža|Roman bridge]] over Bosna river in [[Ilidža]]
+</gallery>
+
+==References==
+{{reflist}}
+
+{{DEFAULTSORT:Bosna (River)}}
+[[Category:Rivers of Bosnia and Herzegovina]]
+[[Category:Tributaries of the Sava]]
+[[Category:Bridges in Sarajevo]]
