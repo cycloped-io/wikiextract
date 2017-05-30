@@ -11,6 +11,7 @@ gem 'activesupport'
 gem 'progress', :git => 'git://github.com/djstrong/progress.git'
 gem 'slop'
 gem 'srx-english', '~> 0.1.2'
+gem 'melisa'
 
 gem 'rod', '~> 0.7.4.1'
 gem 'cyclopedio-wiki', :path => '../wiki' #:git => 'https://github.com/cycloped-io/wiki.git'
