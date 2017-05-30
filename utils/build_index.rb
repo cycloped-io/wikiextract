@@ -30,7 +30,9 @@ index = Melisa::IntTrie.new
 line_index = 1
 File.open(options[:occurrences]) do |input|
   input.with_progress do |line|
-    index.set(line.chomp.force_encoding("ascii-8bit"), line_index + 1)
+    next if line[0] == " "
+    line = line.chomp.force_encoding("ascii-8bit")
+    index.set(line, line_index + 1)
     line_index += 1
   end
 end
