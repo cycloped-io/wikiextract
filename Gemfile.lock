@@ -57,6 +57,7 @@ DEPENDENCIES
   cyclopedio-wiki!
   cycr (~> 0.2.0)
   htmlentities
+  melisa
   progress!
   rake
   rod (~> 0.7.4.1)
