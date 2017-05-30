@@ -52,7 +52,7 @@ index = Melisa::IntTrie.new
 index.load(options[:index])
 File.open(options[:candidates], "w") do |output|
   CSV.open(options[:tokens], col_sep: "\t", quote_char: "\x00") do |input|
-    input.each do |tuple|
+    input.with_progress do |tuple|
       begin
         stack = [convert_tuple(tuple)]
         recoreded_pos = input.pos
@@ -64,7 +64,6 @@ File.open(options[:candidates], "w") do |output|
         break
       end
     end
-    Progress.stop
   end
 end
 
