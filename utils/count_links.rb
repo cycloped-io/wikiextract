@@ -14,7 +14,7 @@ options = Slop.new do
   on :i=, :index, "Input file with Marisa index", required: true
   on :o=, :counts, "Output file with link counts", required: true
   on :c=, :candidates, "Output file with link candidates", required: true
-  on :l=, :limit, "Limit for articles (last-1 article to process)", as: Integer
+  on :l=, :length, "Number of articles to process (default: 10)", as: Integer, default: 10
   on :x=, :offset, "Offset of articles (first article to process)", as: Integer, default: 0
   on :q, :quiet, "Don't print progress"
 end
@@ -52,9 +52,12 @@ index = Melisa::IntTrie.new
 index.load(options[:index])
 File.open(options[:candidates], "w") do |output|
   CSV.open(options[:tokens], col_sep: "\t", quote_char: "\x00") do |input|
-    input.with_progress do |tuple|
+    Progress.start(options[:length])
+    input.each do |tuple|
       begin
         stack = [convert_tuple(tuple)]
+        next if stack[0][0] < options[:offset]
+        break if stack[0][0] >= options[:offset] + options[:length]
         recoreded_pos = input.pos
         while(count_and_match_tokens(index, stack, input, output, counts)) do
           stack << convert_tuple(input.shift)
@@ -64,6 +67,7 @@ File.open(options[:candidates], "w") do |output|
         break
       end
     end
+    Progress.stop
   end
 end
 

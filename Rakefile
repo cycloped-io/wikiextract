@@ -46,24 +46,16 @@ def get_params
   [data,db]
 end
 
-def split_jobs(model_name,db)
+def split_jobs(count)
   require 'bundler/setup'
-  require 'cyclopedio/wiki'
-  include Cyclopedio::Wiki
-  model_class = Cyclopedio::Wiki.const_get(model_name)
-  Database.instance.open_database(db)
-  count = model_class.count
-  Database.instance.close_database
   jobs = (ENV['WIKI_JOBS'] || 1).to_i
   partial_size = count / jobs
   threads = jobs.times.map do |job_index|
     first_index = job_index * partial_size
-    last_index = (job_index+1) * partial_size
-    last_index = count + 1 if job_index == jobs-1
     Thread.new do
       puts " *** #{job_index} started *** "
       Thread.pass
-      yield(job_index,first_index,last_index)
+      yield(job_index,first_index,partial_size)
       puts " *** #{job_index} finished *** "
     end
   end
@@ -133,13 +125,13 @@ namespace :tokens do
   desc 'Extract tokens and links from wikipedia dump'
   task :extract do
     data,db = get_params
-    puts `./utils/parse.rb -w #{data}/pages-articles.xml -d #{db} -t #{data}/tokens.tsv -l #{data}/links.tsv`
+    puts `./utils/parse.rb -w #{data}/pages-articles.xml -o #{data}/offsets.csv -t #{data}/tokens.tsv -l #{data}/links.tsv`
   end
 
   desc 'Find uniq token names'
   task :uniq do
     data,db = get_params
-    puts `./utils/unique_tokens.sh #{data}/tokens.tsv #{data}/uniq_tokens.txt`
+    puts `./utils/unique_segments.sh #{data}/links.tsv #{data}/occurrences`
   end
 
   desc 'Convert links to token, source and target ROD ids'
@@ -163,14 +155,14 @@ namespace :links do
   desc "Count all links occurrences"
   task :count do
     data,db = get_params
-    `rm #{data}/link_counts_*.csv`
-    split_jobs("Article",db) do |job_index,first_index,last_index|
+    #`rm #{data}/link_counts_*.csv`
+    split_jobs((ENV['WIKI_COUNT'] || 10000).to_i) do |job_index,offset,length|
       quiet = (job_index == 0 ? "" : "-q")
-      puts `./utils/count_links.rb -d #{db} -t #{data}/tokens_text.sorted.csv -o #{data}/link_counts_#{first_index}_#{last_index}.csv -x #{first_index} -l #{last_index} #{quiet}`
+      puts `./utils/count_links.rb -t #{data}/tokens.tsv -o #{data}/counts_#{offset}.csv -x #{offset} -l #{length} -c #{data}/candidates_#{offset}.tsv #{quiet} -i #{data}/links.index`
     end
-    `cat #{data}/link_counts_*.csv > #{data}/link_counts.cat.csv`
-    `./utils/sort_links.rb -i #{data}/link_counts.cat.csv -o #{data}/link_counts.sorted.csv`
-    `./utils/merge_links.rb -i #{data}/link_counts.sorted.csv -o #{data}/link_counts.merged.csv`
+    #`cat #{data}/link_counts_*.csv > #{data}/link_counts.cat.csv`
+    #`./utils/sort_links.rb -i #{data}/link_counts.cat.csv -o #{data}/link_counts.sorted.csv`
+    #`./utils/merge_links.rb -i #{data}/link_counts.sorted.csv -o #{data}/link_counts.merged.csv`
     #`rm #{data}/link_counts_* #{data}/link_counts.cat.csv #{data}/link_counts.sorted.csv`
   end
 
