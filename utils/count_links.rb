@@ -27,24 +27,24 @@ rescue => ex
   exit
 end
 
+class Context < Struct.new(:index, :string, :output, :counts, :first_token_index, :last_token_index, :document_id)
+end
+
 def convert_tuple(tuple)
   document_id, token_index, space, token = *tuple
   token = token.chomp
+  token.force_encoding("ascii-8bit")
   document_id = document_id.to_i
   [document_id, token_index, space, token]
 end
 
-def count_and_match_tokens(index, stack, input, output, counts)
-  string = stack[0][3] + stack[1..-1].map{|_, _, s, t| s == "1" ? " " + t : t}.join("")
-  string.force_encoding("ascii-8bit")
-  token_id = index[string]
+def count_and_match_tokens(context)
+  token_id = context.index[context.string]
   if token_id
-    first_tuple = stack[0]
-    last_tuple = stack.last
-    output.puts "%s\t%s\t%s\t%s" % [first_tuple[0], first_tuple[1], last_tuple[1], string]
-    counts[string] += 1 if token_id
+    context.output.puts "%s\t%s\t%s\t%s" % [context.document_id, context.first_token_index, context.last_token_index, context.string]
+    context.counts[context.string] += 1
   end
-  index.search(string).size > 0
+  context.index.search(context.string).size > 0
 end
 
 counts = Hash.new(0)
@@ -52,15 +52,21 @@ index = Melisa::IntTrie.new
 index.load(options[:index])
 File.open(options[:candidates], "w") do |output|
   CSV.open(options[:tokens], col_sep: "\t", quote_char: "\x00") do |input|
+    context = Context.new(index, nil, output, counts, nil, nil, nil)
     Progress.start(options[:length])
     input.each do |tuple|
       begin
-        stack = [convert_tuple(tuple)]
-        next if stack[0][0] < options[:offset]
-        break if stack[0][0] >= options[:offset] + options[:length]
+        context.document_id, context.first_token_index, space, token = *convert_tuple(tuple)
+        next if context.document_id < options[:offset]
+        break if context.document_id >= options[:offset] + options[:length]
         recoreded_pos = input.pos
-        while(count_and_match_tokens(index, stack, input, output, counts)) do
-          stack << convert_tuple(input.shift)
+        context.last_token_index = context.first_token_index
+        context.string = token.dup
+        while(count_and_match_tokens(context)) do
+          last_document_id, context.last_token_index, space, last_token = convert_tuple(input.shift)
+          break if context.document_id != last_document_id
+          context.string << " " if space == "1"
+          context.string << last_token
         end
         input.pos = recoreded_pos
       rescue Interrupt
