@@ -52,7 +52,7 @@
 #define PRINT(type) do { EMIT(SKIP); wikitext_print_token(out,file_p,doc_id,type); } while (0)
 #define PRINT_CRLF() do { EMIT(SKIP); wikitext_print_crlf(out,file_p,doc_id); } while (0)
 
-long token_number = 0; 
+long token_number = 0;
 
 
 #line 59 "wikitext_ragel.c"
@@ -385,7 +385,7 @@ tr46:
               case NOWIKI :
                 opening = LAST_TYPE();
                 if(opening == PRE_START) {
-                  POP(); 
+                  POP();
                   EMIT(SKIP);
                   {p++; cs = 98; goto _out;}
                 }
@@ -409,7 +409,7 @@ tr46:
 tr64:
 #line 113 "wikitext_ragel.rl"
 	{te = p+1;{
-            state = GET_STATE(); 
+            state = GET_STATE();
             switch(state){
               case POST_LINK :
                 POP();
@@ -1033,7 +1033,7 @@ tr176:
                 case NOWIKI :
                   opening = LAST_TYPE();
                   if(opening == TAG_START) {
-                    POP(); 
+                    POP();
                     EMIT(SKIP);
                     {p++; cs = 98; goto _out;}
                   }
@@ -1119,7 +1119,7 @@ tr193:
               break;
               case LINK :
                 POP();
-                TODO(); //Close link tag                 
+                TODO(); //Close link tag
                 EMIT(EXT_LINK_END);
                 {p++; cs = 98; goto _out;}
               case POST_LINK :
@@ -1155,7 +1155,7 @@ tr194:
               break;
               case LINK :
                 POP();
-                TODO(); //Close link tag                 
+                TODO(); //Close link tag
                 EMIT(LINK_END);
                 // used to combine links such as [[Alan]]owi
                 PUSH(SKIP,POST_LINK);
@@ -1226,7 +1226,7 @@ tr198:
               break;
               case POST_LINK :
                 POP();
-              default : 
+              default :
                 EMIT(SKIP);
                 {p++; cs = 98; goto _out;}
               break;

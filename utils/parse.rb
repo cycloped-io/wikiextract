@@ -47,25 +47,40 @@ else
   stop = options[:range].last
 end
 
+indices = []
+
+begin
+  Progress.start("Reading index", `wc -l #{options[:offsets]}`.to_i)
+  CSV.open(options[:offsets]) do |input|
+    input.each do |page_id, offset, length|
+      Progress.step(1)
+      page_id = page_id.to_i
+      offset = offset.to_i
+      length = length.to_i
+      next if page_id < start
+      break if page_id > stop && stop > -1
+      indices << [page_id, offset, length]
+    end
+  end
+ensure
+  Progress.stop()
+end
+
 if options[:wikipedia]
-  Progress.start("Wiki tokens",stop-start)
   File.open(options[:wikipedia]) do |wikipedia|
-    CSV.open(options[:offsets]) do |input|
-      input.each do |page_id, offset, length|
-        page_id = page_id.to_i
-        offset = offset.to_i
-        length = length.to_i
-        next if page_id < start
-        break if page_id > stop
-        Progress.set(page_id-start)
+    begin
+      Progress.start("Parsing wikipedia", indices.size)
+      indices.each do |page_id, offset, length|
+        Progress.step
         wikipedia.seek(offset)
         #puts wikipedia.read(length)
         parser.parse(wikipedia.read(length), page_id)
       end
+    ensure
+      Progress.stop
+      parser.close
     end
   end
-  parser.close
-  Progress.stop
 else
   parser.parse(File.read(options[:input]),0)
   parser.close
