@@ -30,18 +30,28 @@ VALUE cWikitextParser        = 0;   // class Wikitext::Parser
 VALUE eWikitextParserError   = 0;   // class Wikitext::Parser::Error
 VALUE cWikitextParserToken   = 0;   // class Wikitext::Parser::Token
 
+int preceding_space = 0;
+
 void wikitext_print_token(token_t * token,FILE * file_p,int doc_id, const char * type){
-  fprintf(file_p,"%i\t%i\t%i\t%i\t%i\t%s\t",doc_id,
-      (int)token->line_start, (int)token->line_stop,
-      (int)token->column_start,(int)token->column_stop,type); 
-  fwrite(token->start,1,token->stop-token->start,file_p); 
-  fprintf(file_p,"\n");
+  if(type[0] == 's') {
+    preceding_space = 1;
+  } else {
+    fprintf(file_p,"%i\t%li\t%i\t",doc_id,
+        token->token_number,preceding_space);
+    fwrite(token->start, 1, token->stop-token->start,file_p);
+    fprintf(file_p,"\n");
+    preceding_space = 0;
+  }
 }
 
 void wikitext_print_crlf(token_t * token,FILE * file_p, int doc_id){
-  fprintf(file_p,"%i\t%i\t%i\t%i\t%i\tcrlft\t\\n",doc_id,
+  if(1 == 1) {
+    preceding_space = 1;
+    return;
+  }
+  fprintf(file_p,"%i\t%i\t%i\t%i\t%i\t\\n",doc_id,
       (int)token->line_start, (int)token->line_stop,
-      (int)token->column_start,(int)token->column_stop); 
+      (int)token->column_start,(int)token->column_stop);
   fprintf(file_p,"\n");
 }
 

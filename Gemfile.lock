@@ -1,19 +1,7 @@
-GIT
-  remote: git://github.com/djstrong/progress.git
-  revision: 46b34854f62c5f96a116cd971cd6d6226796e35c
-  specs:
-    progress (3.0.0)
-
-PATH
-  remote: ../wiki
-  specs:
-    cyclopedio-wiki (0.1.0)
-      rod (~> 0.7.4.0)
-
 GEM
   remote: http://rubygems.org/
   specs:
-    RubyInline (3.12.4)
+    RubyInline (3.14.0)
       ZenTest (~> 4.3)
     ZenTest (4.12.1)
     activemodel (3.2.22.4)
@@ -36,11 +24,11 @@ GEM
     progress (3.6.0)
     rake (13.0.6)
     ref (1.0.5)
-    rod (0.7.4.1)
+    rod (0.7.4.2)
       RubyInline (>= 3.10.0, < 4.0.0)
       activemodel (~> 3.2, >= 3.2.2)
       bsearch (>= 1.5.0, < 1.6.0)
-      english (>= 0.5.0, < 0.6.0)
+      english (>= 0.7.0, < 0.8.0)
       ref (>= 1.0.5, < 2.0.0)
     slop (4.10.1)
     srx-english (0.1.2)
@@ -54,12 +42,11 @@ PLATFORMS
 DEPENDENCIES
   activesupport
   colors (~> 0.0.6)
-  cyclopedio-wiki!
   cycr (~> 0.2.0)
   htmlentities
-  progress!
+  progress
   rake
-  rod (~> 0.7.4.1)
+  rod (~> 0.7.4.2)
   slop
   srx-english (~> 0.1.2)
   string_case_pl (~> 0.1.0)

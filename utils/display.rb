@@ -37,18 +37,72 @@ class SimpleLink < Struct.new(:article_id,:start,:end,:link,:text)
     self.article_id == token.article_id && self.start <= token.start && self.end >= token.end
   end
 
-  def follows?(token)
+  def last?(token)
     self.article_id == token.article_id && self.end == token.end
   end
 
 
   def before?(token)
-    self.article_id < token.article_id ||
+    result = self.article_id < token.article_id ||
       (self.article_id == token.article_id && self.end < token.start)
+    p [self.link, token.token, self.end, token.start] if result
+    result
   end
 end
 
-class SimpleToken < Struct.new(:article_id,:type,:start,:end,:token)
+class SimpleToken < Struct.new(:article_id,:space,:start,:end,:token)
+  def initialize(*args)
+    super
+    self.token = " " + self.token if self.space
+  end
+end
+
+class OutputService
+  def initialize(output)
+    @output = output
+    @in_link = false
+    @result = ""
+  end
+
+  def push_token(token)
+    @result << token.token.to_s
+  end
+
+  def push_link_source(token)
+    if @output
+      unless @in_link
+        @result << "<link>"
+        @in_link = true
+      end
+      @result << token.token.to_s
+    else
+      @result << token.token.hl(:yellow)
+    end
+  end
+
+  def push_link_target(link)
+    if @output
+      @result << "</link target=\"" << link.link << "\">"
+      @in_link = false
+    else
+      @result << ":" << link.link.hl(:green)
+    end
+  end
+
+  def push_link_error(link)
+    unless @output
+      @result << ":" << link.link.hl(:red)
+    end
+    @in_link = false
+  end
+
+  def print
+    if @output
+      @output.puts @result
+    else
+      puts @result
+    end
+  end
 end
 
 tokens = []
@@ -62,65 +116,53 @@ lower.upto(upper) do |current_id|
   # read segmens
   last_position = tokens_file.pos
   tokens_file.each do |line|
-    article_id,line_start,line_end,token_start,token_end,byte_start,byte_end,type,*token = line.chomp.split("\t")
+    article_id,token_start,space,*token = line.chomp.split("\t")
     article_id = article_id.to_i
     next if article_id < current_id
     Progress.set(article_id-lower)
     break if article_id > current_id
     last_position = tokens_file.pos
     token = token.join("\t")
-    tokens << SimpleToken.new(article_id,type,byte_start.to_i,byte_end.to_i,token)
+    space = (space == "1")
+    tokens << SimpleToken.new(article_id,space,token_start.to_i,token_start.to_i,token)
   end
   tokens_file.pos = last_position
 
   # read links
   last_position = links_file.pos
   links_file.each do |line|
-    article_id,line_start,line_end,token_start,token_end,byte_start,byte_end,link,text = line.chomp.split("\t")
+    article_id,token_start,token_end,link,text = line.chomp.split("\t")
     article_id = article_id.to_i
     next if article_id < current_id
     Progress.set(article_id-lower)
     break if article_id > current_id
     last_position = links_file.pos
-    links << SimpleLink.new(article_id,byte_start.to_i,byte_end.to_i,link,text)
+    links << SimpleLink.new(article_id,token_start.to_i,token_end.to_i,link,text)
   end
   links_file.pos = last_position
 
   # print article
-  result = ""
-  in_link = false
+  output_service = OutputService.new(output)
   tokens.each do |token|
     begin
       link = links.first
       if link && link.includes?(token)
-        result << token.token.hl(:yellow) unless output
-        if output
-          unless in_link
-            result << "<link>"
-            in_link = true
-          end
-          result << token.token.to_s
+        output_service.push_link_source(token)
+        if link.last?(token)
+          output_service.push_link_target(link)
+          links.shift
+          link = links.first
         end
       else
-        result << token.token.to_s
-      end
-      if link && link.follows?(token)
-        result << ":" << link.link.hl(:green) unless output
-        if output
-          result << "</link target=\"" << link.link << "\">"
-          in_link = false
-        end
-        links.shift
-        link = links.first
+        output_service.push_token(token)
       end
       while(link) do
         if link.before?(token)
-	  result << ":" << link.link.hl(:red) unless output
+          output_service.push_link_error(link)
           links.shift
           link = links.first
-          in_link = false
         else
-          link = nil
+          break
         end
       end
     rescue => ex
@@ -131,8 +173,7 @@ lower.upto(upper) do |current_id|
       raise
     end
   end
-  puts result.gsub(/(\\n)+/,"\n") unless output
-  output.puts result.gsub(/(\\n)+/,"\n") if output
+  output_service.print
 end
 Progress.stop
 tokens_file.close

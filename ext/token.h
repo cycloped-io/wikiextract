@@ -36,6 +36,7 @@ typedef struct
     size_t      column_start;
     size_t      column_stop;
     uint32_t    code_point;
+    long        token_number;
     int         type;
 } token_t;
 
@@ -122,11 +123,11 @@ enum token_types {
 };
 
 enum state_types {
-    DEFAULT, 
-    BLIND, 
-    BLIND_LINK, 
-    INNER_LINK, 
-    LINK, 
+    DEFAULT,
+    BLIND,
+    BLIND_LINK,
+    INNER_LINK,
+    LINK,
     NOWIKI,
     POST_LINK,
     EXT_LINK

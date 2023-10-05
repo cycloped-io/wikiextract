@@ -35,12 +35,12 @@
 #define IN_EITHER_OF(type1, type2) ary_includes2(parser->scope, type1, type2)
 #define IN_ANY_OF(type1, type2, type3) ary_includes3(parser->scope, type1, type2, type3)
 
+
 const char * space_type = "space";
 const char * printable_type = "print";
 const char * num_type = "num";
 const char * alnum_type = "alnum";
-const char * crlf_type = "alnum";
-
+const char * crlf_type = "crlf";
 
 void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack2,
     FILE * file_p1, FILE * file_p2,int doc_id){
@@ -51,9 +51,10 @@ void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack
     return;
   //printf("%i %i %i\n",*s1_size,stack1[0].start,stack1[*s1_size-1].stop);
   //printf("%i %i %i\n",*s2_size,stack2[0].start,stack2[*s2_size-1].stop);
-  fprintf(file_p2,"%i\t%i\t%i\t%i\t%i\t",doc_id,(int)stack2[0].line_start,
-      (int)stack1[*s1_size-1].line_stop,(int)stack2[0].column_start,
-      (int)stack1[*s1_size-1].column_stop);
+  fprintf(file_p2,"%i\t%li\t%li\t",
+      doc_id,
+      (long)stack2[0].token_number,
+      (long)stack1[*s1_size-1].token_number);
 
   offset = 0;
   buf_size = stack2[*s2_size-1].stop-stack2[0].start+1;
@@ -98,7 +99,7 @@ void finish_link1(int * s1_size,int * s2_size, token_t * stack1, token_t * stack
         offset += stack1[i].stop-stack1[i].start;
       break;
       case CRLF :
-        wikitext_print_crlf(&(stack1[i]),file_p1,doc_id); 
+        //wikitext_print_crlf(&(stack1[i]),file_p1,doc_id); 
       break;
     }
   }

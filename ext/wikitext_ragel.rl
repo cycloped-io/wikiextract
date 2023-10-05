@@ -33,7 +33,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define EMIT(t)     do { out->type = t; out->stop = p + 1; out->column_stop += (out->stop - out->start); } while (0)
+#define EMIT(t)     do { out->type = t; out->stop = p + 1; out->column_stop += (out->stop - out->start); out->token_number = ++token_number; } while (0)
 #define MARK()      do { mark = p; } while (0)
 #define REWIND()    do { p = mark; } while (0)
 #define AT_END()    (p + 1 == pe)
@@ -50,6 +50,7 @@
 #define PRINT(type) do { EMIT(SKIP); wikitext_print_token(out,file_p,doc_id,type); } while (0)
 #define PRINT_CRLF() do { EMIT(SKIP); wikitext_print_crlf(out,file_p,doc_id); } while (0)
 
+long token_number = 0;
 
 %%{
     machine wikitext;
@@ -99,8 +100,8 @@
 
     main := |*
 
-        ( '<nowiki>'i ) | ( '</nowiki>'i ) | ( '<blockquote>'i ) | ( '</blockquote>'i ) | 
-        ( '<strong>'i ) | ( '</strong>'i ) | ( '<em>'i ) | ( '</em>'i ) | ( '`' ) | 
+        ( '<nowiki>'i ) | ( '</nowiki>'i ) | ( '<blockquote>'i ) | ( '</blockquote>'i ) |
+        ( '<strong>'i ) | ( '</strong>'i ) | ( '<em>'i ) | ( '</em>'i ) | ( '`' ) |
         ( '<tt>'i ) | ( '</tt>'i ) | uri | mail | '__NOTOC__'
         {
             EMIT(SKIP);
@@ -110,7 +111,7 @@
         ( '<pre>'i ) | ( '<pre lang="' alpha+ '">' ) | ( '<math>'i ) | ( '<timeline>'i ) |
         ( '<ref>'i ) | ( '<ref ' [^\>]+ '>'i )
         {
-            state = GET_STATE(); 
+            state = GET_STATE();
             switch(state){
               case POST_LINK :
                 POP();
@@ -138,7 +139,7 @@
               case NOWIKI :
                 opening = LAST_TYPE();
                 if(opening == PRE_START) {
-                  POP(); 
+                  POP();
                   EMIT(SKIP);
                   fbreak;
                 }
@@ -411,7 +412,7 @@
               break;
               case LINK :
                 POP();
-                TODO(); //Close link tag                 
+                TODO(); //Close link tag
                 EMIT(LINK_END);
                 // used to combine links such as [[Alan]]owi
                 PUSH(SKIP,POST_LINK);
@@ -530,7 +531,7 @@
               break;
               case POST_LINK :
                 POP();
-              default : 
+              default :
                 EMIT(SKIP);
                 fbreak;
               break;
@@ -580,7 +581,7 @@
               break;
               case LINK :
                 POP();
-                TODO(); //Close link tag                 
+                TODO(); //Close link tag
                 EMIT(EXT_LINK_END);
                 fbreak;
               case POST_LINK :
@@ -705,7 +706,7 @@
                 case NOWIKI :
                   opening = LAST_TYPE();
                   if(opening == TAG_START) {
-                    POP(); 
+                    POP();
                     EMIT(SKIP);
                     fbreak;
                   }
@@ -818,7 +819,7 @@
             }
         };
 
-        (alnum | 
+        (alnum |
           (0xc2..0xdf 0x80..0xbf)                         @two_byte_utf8_sequence     |
           (0xe0..0xef 0x80..0xbf 0x80..0xbf)              @three_byte_utf8_sequence   |
           (0xf0..0xf4 0x80..0xbf 0x80..0xbf 0x80..0xbf)   @four_byte_utf8_sequence
@@ -849,7 +850,7 @@
         };
 
         # here is where we handle everything else
-        (0x01..0x1f | 0x7f)   @non_printable_ascii 
+        (0x01..0x1f | 0x7f)   @non_printable_ascii
         {
                 if(GET_STATE() == POST_LINK)
                   POP();

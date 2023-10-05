@@ -21,6 +21,9 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef __PARSER_H__
+#define __PARSER_H__
+
 #include "ruby_compat.h"
 
 VALUE Wikitext_parser_initialize(int argc, VALUE *argv, VALUE self);
@@ -29,3 +32,5 @@ VALUE Wikitext_parser_tokenize(VALUE self, VALUE string, VALUE file1, VALUE file
     VALUE id);
 
 VALUE Wikitext_parser_flush(VALUE self, VALUE file1);
+
+#endif
