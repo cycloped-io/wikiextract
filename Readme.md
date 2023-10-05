@@ -30,3 +30,12 @@ cyclopedio/
     sql/
     wikiextract/
 ```
+
+The scripts might be run with Docker and `docker compose`. The `docker-compose` is in `sql` subproject.
+
+```
+docker compose up # in cyclopedio/sql
+# in a separate window
+docker exec cyclopedio-wikiextract bundle exec rake build
+docker exec cyclopedio-wikiextract bundle exec rake tokens:extract
+```
