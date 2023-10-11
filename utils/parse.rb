@@ -8,26 +8,17 @@ require 'pp'
 require 'progress'
 require 'slop'
 
-options = Slop.new do
-  banner "#{$PROGRAM_NAME} -w dump.xml -o offsets.csv -t tokens.tsv -l links.tsv [-a article_id|-r range]\n" +
-    "#{$PROGRAM_NAME} -f file.txt -t tokens.tsv -l links.tsv\n" +
-    "Convert Wikipedia XML dump to CSV containing text tokens and links.\n"
-
-  on :w=, :wikipedia, "Wikipedia dump path"
-  on :o=, :offsets, "File with article offsets"
-  on :f=, :input, "Text file to parse"
-  on :a=, :"article-id", "Wiki id of article to parse (overrides range)", as: Integer
-  on :r=, :range, "Range of article ids to be parsed (default all)", as: Range, default: (0..-1)
-  on :t=, :tokens, "Output file with tokens", required: true
-  on :l=, :links, "Output file with links", required: true
-end
-
-begin
-  options.parse
-rescue => ex
-  puts ex
-  puts options
-  exit
+# Changes in code below caused by a new Slop API version.
+options = Slop.parse do |o|
+  o.string '-w', '--wikipedia', 'Wikipedia dump path'
+  o.string '-o', '--offsets', 'File with article offsets'
+  o.string '-f', '--input', 'Text file to parse'
+  o.integer '-a', '--article-id', 'Wiki id of article to parse (overrides range)'
+  # Two integers below replaced range from previous version. This version doesn't support o.range
+  o.integer '-rb', '--rangebegin', 'Range of article ids to be parsed (default all)', default: 0
+  o.integer '-re', '--rangeend', 'Range of article ids to be parsed (default all)', default: -1
+  o.string '-t', '--tokens', 'Output file with tokens', required: true
+  o.string '-l', '--links', 'Output file with links', required: true
 end
 
 if options[:input].nil? && (options[:wikipedia].nil? || options[:offsets].nil?)
@@ -43,8 +34,9 @@ if article_id
   start = article_id
   stop = article_id
 else
-  start = options[:range].first
-  stop = options[:range].last
+  # Replacement for older o.range
+  start = options[:rangebegin]
+  stop = options[:rangeend]
 end
 
 indices = []
