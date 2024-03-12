@@ -4,18 +4,29 @@ require 'bundler/setup'
 require 'csv'
 require 'progress'
 require 'slop'
-require 'melisa'
+require 'ahocorasick'
+require 'set'
+require_relative 'local_progress'
+
+
+def measure_time(print: true)
+  starting = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  yield
+  ending = Process.clock_gettime(Process::CLOCK_MONOTONIC)
+  elapsed = ending - starting
+  puts "%.3f" % elapsed unless print
+end
 
 options = Slop.new do
-  banner "#{$PROGRAM_NAME} -i occurrences.index -o link_counts.csv -d candidates.tsv -t tokens.tsv\n" +
+  banner "#{$PROGRAM_NAME} -t tokens.tsv -l link.tsv\n" +
     "Count link occurrences and discover link candidates in Wikipedia text."
 
   on :t=, :tokens, "File with text tokens", required: true
-  on :i=, :index, "Input file with Marisa index", required: true
+  on :l=, :links, "File with unique links", required: true
   on :o=, :counts, "Output file with link counts", required: true
-  on :c=, :candidates, "Output file with link candidates", required: true
-  on :l=, :length, "Number of articles to process (default: 10)", as: Integer, default: 10
-  on :x=, :offset, "Offset of articles (first article to process)", as: Integer, default: 0
+  on :f=, :first, "First article ID to process", as: Integer, default: 0
+  on :e=, :last, "Last article ID to process", as: Integer, default: 100
+  on :g=, :log, "Log file to report progress"
   on :q, :quiet, "Don't print progress"
 end
 
@@ -27,61 +38,107 @@ rescue => ex
   exit
 end
 
-class Context < Struct.new(:index, :string, :output, :counts, :first_token_index, :last_token_index, :document_id)
-end
+puts "Counting links: first article ID #{options[:first]}, last article ID #{options[:last]}"
 
-def convert_tuple(tuple)
-  document_id, token_index, space, token = *tuple
-  token = token.chomp
-  token.force_encoding("ascii-8bit")
-  document_id = document_id.to_i
-  [document_id, token_index, space, token]
-end
-
-def count_and_match_tokens(context)
-  token_id = context.index[context.string]
-  if token_id
-    context.output.puts "%s\t%s\t%s\t%s" % [context.document_id, context.first_token_index, context.last_token_index, context.string]
-    context.counts[context.string] += 1
+progress = LocalProgress.new("Processing unique links", `wc -l #{options[:links]}`.to_i, quiet: options[:quiet], log: options[:log])
+names = []
+unique_tokens = Set.new
+names_map = Hash.new{|h,e| h[e] = Set.new }
+measure_time do
+  File.open(options[:links]) do |input|
+    input.each do |line|
+      progress.step(1)
+      name = line.chomp
+      tokens = name.split(/\b/).reject{|e| e =~ /\s/ }
+      next if tokens.empty?
+      names_map[tokens] << name
+      next if names_map[tokens].size > 1
+      tokens.each{|t| unique_tokens << t}
+      names << tokens
+    end
   end
-  context.index.search(context.string).size > 0
 end
+progress.stop
+unless options[:quiet]
+  puts "Unique names #{names.size}"
+  puts "Unique tokens #{unique_tokens.size}"
+  puts "First 10 names #{names[..10].join(" -- ")}"
+  puts "Name map: \n" + names_map.to_a[..10].map{|k,v| "#{k}:#{v}" }.join("\n")
+end
+
+token_map = Hash.new(0)
+token_map_inverted = Hash.new("")
+unique_tokens.to_a.each.with_index do |token, index|
+  token_map[token] = index + 1
+  token_map_inverted[index + 1] = token
+end
+
+converted_names = []
+names.each do |name|
+  converted_names << name.map{|e| token_map[e] }
+end
+reconstructed = converted_names[..10].map{|ids| ids.map{|id| token_map_inverted[id] }}.join(" -- ")
+puts "First 10 names reconstructed: #{reconstructed}" unless options[:quiet]
+
+converted_names_map = {}
+names_map.each do |tokens, names|
+  ids = tokens.map{|t| token_map[t]}
+  converted_names_map[ids] = names
+end
+reconstructed = converted_names_map.to_a[..10].map{|ids,names| ids.map{|id| token_map_inverted[id] }.join(" ") + ":" + names.to_s}.join(" -- ")
+puts "First 10 names map reconstructed: #{reconstructed}" unless options[:quiet]
+
+trie = AhoC::Trie.new
+measure_time do 
+  converted_names.each do |name| 
+    trie.add(name)
+  end
+  trie.build()
+end
+
 
 counts = Hash.new(0)
-index = Melisa::IntTrie.new
-index.load(options[:index])
-File.open(options[:candidates], "w") do |output|
-  CSV.open(options[:tokens], col_sep: "\t", quote_char: "\x00") do |input|
-    context = Context.new(index, nil, output, counts, nil, nil, nil)
-    Progress.start(options[:length])
-    input.each do |tuple|
-      begin
-        context.document_id, context.first_token_index, space, token = *convert_tuple(tuple)
-        next if context.document_id < options[:offset]
-        break if context.document_id >= options[:offset] + options[:length]
-        recoreded_pos = input.pos
-        context.last_token_index = context.first_token_index
-        context.string = token.dup
-        while(count_and_match_tokens(context)) do
-          last_document_id, context.last_token_index, space, last_token = convert_tuple(input.shift)
-          break if context.document_id != last_document_id
-          context.string << " " if space == "1"
-          context.string << last_token
-        end
-        input.pos = recoreded_pos
-      rescue Interrupt
-        break
-      end
-    end
-    Progress.stop
-  end
-end
+last_wiki_id = nil
+text = []
+article_count = 0
 
-CSV.open(options[:counts],"w") do |output|
-  Progress.start(counts.size) unless options[:quiet]
-  counts.each do |tuple|
-    Progress.step unless options[:quiet]
-    output << tuple
+progress = LocalProgress.new("Counting links", options[:last] - options[:first], quiet: options[:quiet], log: options[:log])
+
+File.open(options[:tokens]) do |input|
+  input.each do |token|
+    begin
+      wiki_id, token_offset, space_before, token = token.split("\t")
+      wiki_id = wiki_id.to_i
+      next if wiki_id < options[:first]
+      break if wiki_id > options[:last]
+
+      token_offset = token_offset.to_i
+      space_before = (space_before == "1")
+      token = token.chomp
+
+      last_wiki_id = wiki_id if(last_wiki_id.nil?)
+      if(wiki_id != last_wiki_id)
+        progress.step(wiki_id - last_wiki_id)
+        trie.lookup(text).each do |match|
+          #puts(match.map{|id| token_map_inverted[id] }.join(" -- "))
+          converted_names_map[match].each{|name| counts[name] += 1}
+        end
+        text = []
+        article_count += 1
+      end
+      token_id = token_map[token]
+      text << token_id if token_id > 0
+      last_wiki_id = wiki_id
+    rescue Interrupt
+      break
+    end
+  end 
+end
+progress.stop
+
+CSV.open(options[:counts], "w") do |csv_output|
+  counts.sort_by{|k,v| k}.each do |key, value|
+    #puts "%-20s%i" % [key,value]
+    csv_output << [key, value]
   end
-  Progress.stop unless options[:quiet]
 end

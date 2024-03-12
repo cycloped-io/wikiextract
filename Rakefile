@@ -24,6 +24,7 @@
 require 'rake'
 require 'rake/clean'
 require 'rubygems'
+require 'cyclopedio/wiki'
 
 $LOAD_PATH.unshift(File.expand_path(File.join(File.dirname(__FILE__), 'lib')))
 #require 'wikitext/version'
@@ -124,20 +125,24 @@ end
 namespace :tokens do
   desc 'Extract tokens and links from wikipedia dump'
   task :extract do
+    puts "Extracting links and tokens from dump."
     data,db = get_params
     puts `./utils/parse.rb -w #{data}/pages-articles.xml -o #{data}/offsets.csv -t #{data}/tokens.tsv -l #{data}/links.tsv`
   end
 
   desc 'Find uniq token names'
   task :uniq do
+    puts "Finidng unique token names. The output is stored in 'occurrences' directory."
     data,db = get_params
     puts `./utils/unique_segments.sh #{data}/links.tsv #{data}/occurrences`
   end
 
   desc 'Convert links to token, source and target ROD ids'
   task :convert do
+    puts "Convert links to token, source and target ID"
     data,db = get_params
-    split_jobs("Article",db) do |job_index,first_index,last_index|
+    Cyclopedio::Wiki::Database.instance.open_database(db)
+    split_jobs(Cyclopedio::Wiki::Article.count) do |job_index,first_index,last_index|
       quiet = (job_index == 0 ? "" : "-q")
       puts `./utils/convert_links.rb -i #{data}/links.tsv -x #{first_index} -l #{last_index} -o #{data}/tokens_links_#{first_index}_#{last_index}.csv -c #{data}/tokens_counts_#{first_index}_#{last_index}.csv -w #{data}/tokens_text_#{first_index}_#{last_index}.csv -t #{data}/tokens.tsv -d #{db} #{quiet}`
     end
@@ -148,29 +153,31 @@ namespace :tokens do
     `./utils/merge_links.rb -i #{data}/tokens_links.sorted.csv -o #{data}/tokens_links.merged.csv`
     `./utils/merge_links.rb -i #{data}/tokens_counts.sorted.csv -o #{data}/tokens_counts.merged.csv`
     #`rm #{data}/tokens_links.sorted.csv #{data}/tokens_counts.sorted.csv #{data}/tokens_text.sorted.csv`
+    Cyclopedio::Wiki::Database.instance.close_database()
   end
 end
 
 namespace :links do
   desc "Count all links occurrences"
   task :count do
+    puts "Count all link occurrences"
     data,db = get_params
     #`rm #{data}/link_counts_*.csv`
-    split_jobs((ENV['WIKI_COUNT'] || 10000).to_i) do |job_index,offset,length|
-      quiet = (job_index == 0 ? "" : "-q")
-      puts `./utils/count_links.rb -t #{data}/tokens.tsv -o #{data}/counts_#{offset}.csv -x #{offset} -l #{length} -c #{data}/candidates_#{offset}.tsv #{quiet} -i #{data}/links.index`
+    split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i) do |job_index,offset,length|
+      puts `./utils/count_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q`
     end
-    #`cat #{data}/link_counts_*.csv > #{data}/link_counts.cat.csv`
-    #`./utils/sort_links.rb -i #{data}/link_counts.cat.csv -o #{data}/link_counts.sorted.csv`
-    #`./utils/merge_links.rb -i #{data}/link_counts.sorted.csv -o #{data}/link_counts.merged.csv`
-    #`rm #{data}/link_counts_* #{data}/link_counts.cat.csv #{data}/link_counts.sorted.csv`
+    `cat #{data}/link_counts_*.csv > #{data}/link_counts.all.csv`
+    `./utils/sort_links.rb -i #{data}/link_counts.all.csv -o #{data}/link_counts.sorted.csv`
+    `./utils/merge_links.rb -i #{data}/link_counts.sorted.csv -o #{data}/link_counts.merged.csv`
+    `rm #{data}/link_counts_* #{data}/link_counts.all.csv #{data}/link_counts.sorted.csv`
   end
 
   desc "Find link candidates"
   task :candidates do
+    puts "Find link candidates"
     data,db = get_params
     `rm #{data}/link_candidates_*.csv`
-    split_jobs("Article",db) do |job_index,first_index,last_index|
+    split_jobs(Cyclopedio::Wiki::Article.count) do |job_index,first_index,last_index|
       quiet = (job_index == 0 ? "" : "-q")
       puts `./utils/find_candidates.rb -d #{db} -t #{data}/tokens_text.sorted.csv -o #{data}/link_candidates_#{first_index}_#{last_index}.csv -x #{first_index} -l #{last_index} #{quiet} -p 0.01 -s 0.01`
     end
