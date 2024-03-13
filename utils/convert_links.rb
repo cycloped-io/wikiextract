@@ -12,15 +12,15 @@ require 'fiber'
 
 options = Slop.new do
   banner "#{$PROGRAM_NAME} -i links.csv -d pathi/to/db [-x offset] [-l limit]\n" +
-    "Convert links TSV to ids of tokens"
+    "Produce file with (link, linked_count, unlinked_count, (wiki_id, count)) and (wiki_id, (link, count))"
 
   on :i=, :links, "Dump of Wikipedia links", required: true
   on :t=, :tokens, "Dump of Wikipedia tokens", required: true
-  on :x=, :offset, "Offset of articles to convert", as: Integer, default: 0
-  on :l=, :limit, "Number of articles to convert", as: Integer, default: -1
+  on :f=, :first, "First ID articles to convert", as: Integer, default: 0
+  on :l=, :last, "Last ID of articles to convert", as: Integer, default: -1
   on :o=, :output, "Output file with converted links", required: true
-  on :c=, :counts, "Output file with token counts", required: true
-  on :w=, :text, "Output file with Wikipedia text converted to tokens", required: true
+  on :r=, :occurrences, "Output file with articles and their links", required: true
+  on :c=, :counts, "File with unliked link counts", required: true
   on :d=, :database, "Path to ROD database", required: true
   on :q, :quiet, "Don't print progress"
 end
@@ -33,133 +33,140 @@ rescue => ex
   exit
 end
 
-class SimpleLink < Struct.new(:article_id,:line_start,:line_stop,:token_start,:token_stop,:target,:value)
+class SimpleLink < Struct.new(:article_id,:first_token,:last_token,:target,:value)
   def include?(token)
-    self.article_id == token.article_id && 
-      (self.line_start == token.line_start && self.token_start <= token.token_start || self.line_start < token.line_start) &&
-      (self.line_stop == token.line_stop && self.token_stop >= token.token_stop || self.line_stop > token.line_stop)
+    self.first_token <= token.token_id &&  token.token_id <= self.last_token
   end
 
   def <(token)
-    self.article_id < token.article_id ||
-      (self.article_id == token.article_id && 
-       (self.line_stop < token.line_start ||
-	self.line_stop == token.line_start && self.token_stop < token.token_start))
+    self.last_token < token.token_id
   end
 
 
   def >(token)
-    self.article_id > token.article_id ||
-      (self.article_id == token.article_id &&
-	 (self.line_start > token.line_stop ||
-	  self.line_start == token.line_stop && self.token_start > token.token_stop))
+    self.first_token > token.token_id
+  end
+
+  def add_token(token)
+    raise "Invalid token #{token} for link #{self}" if self < token || self > token
+    @tokens ||= []
+    @tokens << token
+  end
+
+  def to_s
+    @tokens ||= []
+    "#{self.article_id} -- [#{self.first_token}:#{self.last_token}] -- #{self.value} -- #{self.target} -- #{@tokens.join(" ")}"
   end
 end
 
-class SimpleToken < Struct.new(:article_id,:line_start,:line_stop,:token_start,:token_stop,:type,:value,:wiki_token)
+class SimpleToken < Struct.new(:article_id,:token_id,:space_before, :value)
+  def to_s
+    "#{self.token_id}:'#{self.value}'"
+  end
 end
 
 include Cyclopedio::Wiki
 
-Database.instance.open_database(options[:database])
-if options[:limit] < 0
-  limit = Article.count + 1
-else
-  limit = options[:limit]
+unlinked_link_counts = {}
+CSV.open(options[:counts]) do |counts|
+  counts.each do |tuple|
+    unlinked_link_counts[tuple[0]] = tuple[1]
+  end
 end
+
+Database.instance.open_database(options[:database])
+if options[:last] < 0
+  limit = `tail -1 #{options[:tokens]} | cut -f 1`.to_i
+else
+  limit = options[:last]
+end
+
 counter = Hash.new(0)
 tokens_fiber = Fiber.new do
   File.open(options[:tokens],"r:utf-8") do |input|
-    CSV.open(options[:text],"w") do |output|
-      tokens = nil
-      input.each do |line|
-	begin
-	  tuple = line.chomp.split("\t")
-	  token = SimpleToken.new(*tuple[0..4].map(&:to_i),tuple[-2],tuple[-1],nil)
-	  next if token.article_id < options[:offset]
-	  break if token.article_id >= limit
-	  tokens = [token.article_id] if tokens.nil?
-
-	  if tokens.first != token.article_id
-	    output << tokens unless tokens.size <= 1
-	    tokens.clear
-	    tokens.push(token.article_id)
-	  end
-	  if token.type != "space" && token.type != "crlft"
-	    wiki_token = Token.find_by_value(token.value)
-	    if wiki_token
-	      tokens << wiki_token.rod_id 
-	      token.wiki_token = wiki_token
-	      Fiber.yield(token)
-	    end
-	  end
-	rescue => ex
-	  STDERR.puts "In fiber: #{line}"
-	  STDERR.puts ex
-	  STDERR.puts ex.backtrace
-	end
+    tokens = nil
+    input.each do |line|
+      begin
+        tuple = line.chomp.split("\t")
+        token = SimpleToken.new(*tuple[0..1].map(&:to_i),tuple[-2],tuple[-1])
+        next if token.article_id < options[:first]
+        break if token.article_id >= limit
+        Fiber.yield(token)
+      rescue => ex
+        STDERR.puts "In fiber: #{line}"
+        STDERR.puts ex
+        STDERR.puts ex.backtrace
       end
-      output << tokens unless tokens.size <= 1
     end
   end
   nil
 end
 
-CSV.open(options[:output],"w") do |output|
-  File.open(options[:links],"r:utf-8") do |input|
-    last_id = options[:offset] - 1
-    token = tokens_fiber.resume
-    ids = []
-    Progress.start(limit-options[:offset]) unless options[:quiet]
-    input.each do |link_line|
-      begin
-	tuple = link_line.chomp.split("\t")
-	link = SimpleLink.new(*tuple[0..4].map(&:to_i),tuple[-2],tuple[-1])
+link_to_article = Hash.new{|h,k| h[k] = Hash.new(0) }
+article_to_link = Hash.new{|h,k| h[k] = Hash.new(0) }
 
-	next if link.article_id < options[:offset]
-	break if link.article_id >= limit
-	if link.article_id != last_id
-	  Progress.step unless options[:quiet]
-	end
-	last_id = link.article_id
+File.open(options[:links],"r:utf-8") do |input|
+  last_id = options[:first] - 1
+  token = tokens_fiber.resume
+  ids = []
+  Progress.start(limit-options[:first]) unless options[:quiet]
+  input.each do |link_line|
+    begin
+      tuple = link_line.chomp.split("\t")
+      link = SimpleLink.new(*tuple[0..2].map(&:to_i),tuple[-2],tuple[-1])
 
-	target_name = link.target[0].upcase + link.target[1..-1]
-	target = Article.find_with_redirect(target_name)
-	next if target.nil?
+      next if link.article_id < options[:first]
+      break if link.article_id >= limit
 
-	while(link > token) do
-	  token = tokens_fiber.resume
-	  break if token.nil?
-	end
-	break if token.nil?
-	#p ["l:#{target_name}",link.article_id,link.line_start,link.line_stop]
-	ids.clear
-	while(link.include?(token))
-	  #p ["t:#{token.value}",token.article_id,token.line_start,token.line_stop]
-	  counter[token.wiki_token.rod_id] += 1
-	  ids << token.wiki_token.rod_id
-	  token = tokens_fiber.resume
-	  break if token.nil?
-	end
-	break if token.nil?
-	output << [ids.join("_"),"#{link.article_id}_#{target.rod_id}"] unless ids.empty?
-      rescue Interrupt
-	break
-      rescue => ex
-	STDERR.puts "In main: #{link_line}"
-	STDERR.puts ex
-	STDERR.puts ex.backtrace
+      if link.article_id != last_id
+        Progress.step unless options[:quiet]
       end
+      last_id = link.article_id
+
+      target_name = link.target[0].upcase + link.target[1..-1]
+      target = Article.find_with_redirect(target_name)
+      next if target.nil?
+
+      while(link > token) do
+        token = tokens_fiber.resume
+        break if token.nil?
+      end
+      break if token.nil?
+
+      while(link.include?(token))
+        link.add_token(token)
+        token = tokens_fiber.resume
+        break if token.nil?
+      end
+      break if token.nil?
+
+      link_to_article[link.value][target.wiki_id] += 1
+      article_to_link[target.wiki_id][link.value] += 1
+    rescue Interrupt
+      break
+    rescue => ex
+      STDERR.puts "In main: #{link_line}"
+      STDERR.puts ex
+      STDERR.puts ex.backtrace
     end
-    Progress.stop unless options[:quiet]
   end
+  Progress.stop unless options[:quiet]
 end
+
 while(tokens_fiber.alive?) do
   tokens_fiber.resume
 end
-CSV.open(options[:counts],"w") do |counts|
-  counter.each do |key,value|
-    counts << [key,value]
+
+CSV.open(options[:output],"w") do |counts|
+  link_to_article.each do |link, articles|
+    unlinked_count = unlinked_link_counts[link]
+    next if unlinked_count.nil?
+    counts << [link, articles.sum{|a,v| v }, unlinked_count, *articles.to_a.flatten]
+  end
+end
+CSV.open(options[:occurrences],"w") do |output|
+  article_to_link.each do |wiki_id, links|
+    output << [wiki_id, *links.keys]
   end
 end
 Database.instance.close_database

@@ -149,4 +149,15 @@ namespace :links do
     puts `./utils/merge_links.rb -i '#{data}/counts_*.csv' -o #{data}/counts.merged.csv`
     #`rm #{data}/counts_* #{data}/counts.all.csv #{data}/counts.sorted.csv`
   end
+
+  desc "Convert links to occurrences"
+  task :convert do
+    puts "Convert links to occurrences #{Time.now}"
+    data,db = get_params
+    split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i) do |job_index,offset,length|
+      puts `./utils/convert_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q`
+    end
+    #puts `./utils/merge_links.rb -i '#{data}/counts_*.csv' -o #{data}/counts.merged.csv`
+    #`rm #{data}/counts_* #{data}/counts.all.csv #{data}/counts.sorted.csv`
+  end
 end
