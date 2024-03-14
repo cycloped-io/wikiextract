@@ -38,32 +38,32 @@ CSV.open(options[:tokens]) do |input|
     last_id = nil
     input.each do |tokens|
       begin
-	tokens.map!(&:to_i)
-	article_id = tokens.shift
-	next if article_id < options[:offset]
-	break if article_id >= limit
-	Progress.step if !options[:quiet] && last_id != article_id
-	last_id = article_id
-	tokens.each.with_index do |token_id,index|
-	  token = Token.find_by_rod_id(token_id)
-	  # at least one letter is required in the first token of the link
-	  next unless token.value =~ /\p{L}/
-	  trie = token.trie
-	  current_index = index + 1
-	  next if current_index >= tokens.size
-	  while(trie) do
-	    if trie.link_probability >= options[:"link-probability"]
-	      trie.mentions.each do |mention|
-		next if mention.probability < options[:"sense-probability"]
-		output << [article_id,index,trie.rod_id,mention.rod_id]
-		#output << [article_id,index,trie.link_name,trie.link_probability.round(5),mention.article.name,mention.probability.round(5)]
-	      end
-	    end
-	    trie = trie.fast_search(tokens[current_index])
-	    current_index += 1
-	    break if current_index >= tokens.size
-	  end
-	end
+        tokens.map!(&:to_i)
+        article_id = tokens.shift
+        next if article_id < options[:offset]
+        break if article_id >= limit
+        Progress.step if !options[:quiet] && last_id != article_id
+        last_id = article_id
+        tokens.each.with_index do |token_id,index|
+          token = Token.find_by_rod_id(token_id)
+          # at least one letter is required in the first token of the link
+          next unless token.value =~ /\p{L}/
+          trie = token.trie
+          current_index = index + 1
+          next if current_index >= tokens.size
+          while(trie) do
+            if trie.link_probability >= options[:"link-probability"]
+              trie.mentions.each do |mention|
+                next if mention.probability < options[:"sense-probability"]
+                output << [article_id,index,trie.rod_id,mention.rod_id]
+                #output << [article_id,index,trie.link_name,trie.link_probability.round(5),mention.article.name,mention.probability.round(5)]
+              end
+            end
+            trie = trie.fast_search(tokens[current_index])
+            current_index += 1
+            break if current_index >= tokens.size
+          end
+        end
       rescue Interrupt
 	break
       end
