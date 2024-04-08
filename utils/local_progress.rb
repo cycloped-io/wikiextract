@@ -8,7 +8,9 @@ class LocalProgress
     @cumulative_work = 0
     @reported = 0
     @step = total / TICKS
+    @step = 1 if @step == 0
     @title = title
+    @start_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     if(@quiet)
       unless log.nil?
         @file = File.open(log, "a")
@@ -36,9 +38,10 @@ class LocalProgress
   end
 
   def stop(quiet: false)
+    end_time = Process.clock_gettime(Process::CLOCK_MONOTONIC)
     if(@quiet)
       unless(@file.nil?)
-        @file.puts("Finished [#{Process.pid}] '#{@title}'")
+        @file.puts("Finished [#{Process.pid}] '#{@title}' in %.6f" % [end_time - @start_time])
         @file.close
       end
     else

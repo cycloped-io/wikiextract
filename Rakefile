@@ -25,6 +25,8 @@ require 'rake'
 require 'rake/clean'
 require 'rubygems'
 require 'cyclopedio/wiki'
+require 'progress'
+require 'concurrent'
 
 $LOAD_PATH.unshift(File.expand_path(File.join(File.dirname(__FILE__), 'lib')))
 #require 'wikitext/version'
@@ -62,6 +64,41 @@ def split_jobs(count)
   end
   threads.each(&:run)
   threads.each(&:join)
+end
+
+def new_split_jobs(count, partial_size=nil)
+  pool_size = (ENV['WIKI_JOBS'] || 1).to_i
+  puts "Pool size #{pool_size}"
+
+  partial_size = count / jobs if partial_size.nil?
+  partial_count = count / partial_size
+  partial_count += 1 if count % partial_size != 0
+  puts "Number of executions: #{partial_count}"
+
+  Progress.start(partial_count)
+  pool = nil
+  begin
+    pool = Concurrent::FixedThreadPool.new(pool_size)
+    partial_count.times do |job_index|
+      pool.post do
+        first_index = job_index * partial_size
+        yield(job_index, first_index, partial_size)
+        Progress.step(1)
+      end
+    end
+  ensure
+    unless pool.nil?
+      begin
+        pool.shutdown
+        pool.wait_for_termination
+      rescue Interrupt
+        puts "Stopping jobs"
+        pool.shutdown
+        pool.wait_for_termination
+      end
+    end
+    Progress.stop
+  end
 end
 
 task :default => :all
@@ -143,21 +180,27 @@ namespace :links do
   task :count do
     puts "Count all link occurrences #{Time.now}"
     data,db = get_params
-    split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i) do |job_index,offset,length|
+    new_split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i, 10_000) do |job_index,offset,length|
+      File.open("log/counts.log", "a") do |log|
+        log.puts("Starting #{job_index}")
+      end
       puts `./utils/count_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q`
+      File.open("log/counts.log", "a") do |log|
+        log.puts("Finished #{job_index}")
+      end
     end
     puts `./utils/merge_links.rb -i '#{data}/counts_*.csv' -o #{data}/counts.merged.csv`
-    #`rm #{data}/counts_* #{data}/counts.all.csv #{data}/counts.sorted.csv`
+    if $?.success?
+      `rm #{data}/counts_*`
+    end
   end
 
   desc "Convert links to occurrences"
   task :convert do
     puts "Convert links to occurrences #{Time.now}"
     data,db = get_params
-    split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i) do |job_index,offset,length|
-      puts `./utils/convert_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q`
+    new_split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i, 10_000) do |job_index,offset,length|
+      puts `./utils/convert_links.rb -c #{data}/counts.merged.csv -r #{data}/occurrences.csv -d #{db} -i #{data}/links.tsv -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/anchors.tsv -f #{offset} -e #{offset + length} -g log/count.log -q`
     end
-    #puts `./utils/merge_links.rb -i '#{data}/counts_*.csv' -o #{data}/counts.merged.csv`
-    #`rm #{data}/counts_* #{data}/counts.all.csv #{data}/counts.sorted.csv`
   end
 end

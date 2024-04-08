@@ -38,7 +38,7 @@ rescue => ex
   exit
 end
 
-puts "Counting links: first article ID #{options[:first]}, last article ID #{options[:last]}"
+puts "Counting links: first article ID #{options[:first]}, last article ID #{options[:last]}" unless options[:quiet]
 
 progress = LocalProgress.new("Processing unique links", `wc -l #{options[:links]}`.to_i, quiet: options[:quiet], log: options[:log])
 names = []
