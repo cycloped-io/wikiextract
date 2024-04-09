@@ -38,4 +38,8 @@ docker compose up # in cyclopedio/sql
 # in a separate window
 docker exec cyclopedio-wikiextract bundle exec rake build
 docker exec cyclopedio-wikiextract bundle exec rake tokens:extract
+
+If you want to disambiguate the Wikipedia pages against the DB you have to run:
+
+docker exec cyclopedio-wikiextract bundle exec rake  tokens:uniq links:count links:convert
 ```
