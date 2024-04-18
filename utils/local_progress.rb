@@ -19,6 +19,7 @@ class LocalProgress
     else
       Progress.start(@title, total)
     end
+    @last_time = Time.now
   end
 
   def step(amount)
@@ -27,7 +28,9 @@ class LocalProgress
         @cumulative_work += amount
         steps = @cumulative_work / @step
         if  steps > @reported
-          @file.puts("Processed [#{Process.pid}] #{steps}%")
+          @time = Time.now
+          @file.puts("Processed [#{Process.pid}] #{steps}% <#{@time - @last_time}> <#{@time}>")
+          @last_time = @time
           @file.flush()
           @reported = steps
         end

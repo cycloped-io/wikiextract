@@ -199,8 +199,9 @@ namespace :links do
   task :convert do
     puts "Convert links to occurrences #{Time.now}"
     data,db = get_params
-    new_split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i, 10_000) do |job_index,offset,length|
-      puts `./utils/convert_links.rb -c #{data}/counts.merged.csv -r #{data}/occurrences.csv -d #{db} -i #{data}/links.tsv -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/anchors.tsv -f #{offset} -e #{offset + length} -g log/count.log -q`
-    end
+    #new_split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i, 10_000) do |job_index,offset,length|
+      #puts `./utils/convert_links.rb -c #{data}/counts.merged.csv -r #{data}/occurrences.csv -d #{db} -i #{data}/links.tsv -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/anchors.tsv -f #{offset} -e #{offset + length} -g log/convert.log -q`
+      puts `./utils/convert_links.rb -c #{data}/counts.merged.csv -r #{data}/occurrences.csv -d #{db} -i #{data}/links.tsv -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/anchors.tsv -f 0 -l -1 -g log/convert.log -q`
+    #end
   end
 end

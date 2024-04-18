@@ -9,6 +9,7 @@ require 'progress'
 require 'cyclopedio/wiki'
 require 'string_case_pl'
 require 'fiber'
+require_relative 'local_progress'
 
 options = Slop.new do
   banner "#{$PROGRAM_NAME} -i links.csv -d pathi/to/db [-x offset] [-l limit]\n" +
@@ -22,6 +23,7 @@ options = Slop.new do
   on :r=, :occurrences, "Output file with articles and their links", required: true
   on :c=, :counts, "File with unliked link counts", required: true
   on :d=, :database, "Path to ROD database", required: true
+  on :g=, :log, "Log file to report progress"
   on :q, :quiet, "Don't print progress"
 end
 
@@ -109,7 +111,7 @@ File.open(options[:links],"r:utf-8") do |input|
   last_id = options[:first] - 1
   token = tokens_fiber.resume
   ids = []
-  Progress.start(limit-options[:first]) unless options[:quiet]
+  progress = LocalProgress.new("Processing links", limit-options[:first], quiet: options[:quiet], log: options[:log])
   input.each do |link_line|
     begin
       tuple = link_line.chomp.split("\t")
@@ -119,7 +121,7 @@ File.open(options[:links],"r:utf-8") do |input|
       break if link.article_id >= limit
 
       if link.article_id != last_id
-        Progress.step unless options[:quiet]
+        progress.step(1)
       end
       last_id = link.article_id
 
@@ -150,7 +152,7 @@ File.open(options[:links],"r:utf-8") do |input|
       STDERR.puts ex.backtrace
     end
   end
-  Progress.stop unless options[:quiet]
+  progress.stop
 end
 
 while(tokens_fiber.alive?) do
