@@ -167,24 +167,36 @@ namespace :tokens do
     puts `./utils/parse.rb -w #{data}/pages-articles.xml -o #{data}/offsets.csv -t #{data}/tokens.tsv -l #{data}/links.tsv`
   end
 
-  desc 'Find uniq token names'
+  desc 'Find uniq token names and filter those that occure less than 3 times. The output is stored in occurrences.txt file.'
   task :uniq do
-    puts "Finidng unique token names. The output is stored in 'occurrences' directory."
+    puts "Find uniq token names and filter those that occure less than 3 times."
     data,db = get_params
     puts `./utils/unique_segments.sh #{data}/links.tsv #{data}/occurrences`
   end
 end
 
 namespace :links do
+  desc "Create FSA for coutner"
+  task :fsa do
+    data,db = get_params
+    puts `./utils/create_fsa.rb -l #{data}/occurrences.txt -f #{data}/fsa.obj -g log/fsa.log -s`
+  end
+
   desc "Count all links occurrences"
   task :count do
     puts "Count all link occurrences #{Time.now}"
     data,db = get_params
+    if(!File.exist?("#{data}/tokens-index.tsv"))
+      puts "Index not present, creating."
+      puts `./utils/create_tokens_index.rb -t #{data}/tokens.tsv -i #{data}/tokens-index.tsv`
+    else
+      puts "Index present, skipping index creation."
+    end
     new_split_jobs(`tail -1 #{data}/tokens.tsv | cut -f 1`.to_i, 10_000) do |job_index,offset,length|
       File.open("log/counts.log", "a") do |log|
         log.puts("Starting #{job_index}")
       end
-      puts `./utils/count_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q`
+      log.puts `./utils/count_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q -i #{data}/tokens-index.tsv -s #{data}/fsa.obj`
       File.open("log/counts.log", "a") do |log|
         log.puts("Finished #{job_index}")
       end

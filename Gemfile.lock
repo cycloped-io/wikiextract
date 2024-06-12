@@ -1,3 +1,9 @@
+PATH
+  remote: ../linker
+  specs:
+    cyclopedio-linker (0.1.0)
+      rod (~> 0.7.4.0)
+
 GEM
   remote: http://rubygems.org/
   specs:
@@ -48,6 +54,7 @@ DEPENDENCIES
   ahocorasick
   bigdecimal (= 1.3.5)
   colors (~> 0.0.6)
+  cyclopedio-linker!
   cyclopedio-wiki
   cycr (~> 0.2.0)
   htmlentities
@@ -59,4 +66,4 @@ DEPENDENCIES
   string_case_pl (~> 0.1.0)
 
 BUNDLED WITH
-   2.4.22
+   2.3.6

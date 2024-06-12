@@ -15,5 +15,6 @@ gem 'bigdecimal', '1.3.5'
 
 gem 'rod', '~> 0.7.4.2'
 gem 'cyclopedio-wiki'#, :path => '../wiki' #:git => 'https://github.com/cycloped-io/wiki.git'
+gem 'cyclopedio-linker', :path => '../linker' #:git => 'https://github.com/cycloped-io/wiki.git'
 gem 'ahocorasick'
 #gem 'syntax', :path => '/home/cycmapping/wikipedia-umbel/category-parsing'
