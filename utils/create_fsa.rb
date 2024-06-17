@@ -44,7 +44,7 @@ else
     def each
       @file.each.with_index do |line, index|
         @progress.step(1) if index % 100 == 0
-        yield line.chomp
+        yield line.chomp.strip
       end
     end
 

@@ -196,7 +196,7 @@ namespace :links do
       File.open("log/counts.log", "a") do |log|
         log.puts("Starting #{job_index}")
       end
-      log.puts `./utils/count_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q -i #{data}/tokens-index.tsv -s #{data}/fsa.obj`
+      puts `./utils/count_links.rb -t #{data}/tokens.tsv -l #{data}/occurrences.txt -o #{data}/counts_#{offset}.csv -f #{offset} -e #{offset + length} -g log/count.log -q -i #{data}/tokens-index.tsv -s #{data}/fsa.obj`
       File.open("log/counts.log", "a") do |log|
         log.puts("Finished #{job_index}")
       end

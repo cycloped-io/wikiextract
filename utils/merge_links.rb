@@ -22,9 +22,9 @@ rescue => ex
 end
 
 counts = Hash.new(0)
-Dir.glob(options[:input]).each do |file_name|
+Dir.glob(options[:input]).each.with_progress do |file_name|
   CSV.open(file_name) do |input|
-    input.with_progress(file_name) do |link, count|
+    input.each do |link, count|
       counts[link] += count.to_i
     end
   end
